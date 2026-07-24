@@ -241,6 +241,8 @@ export const toggleStudentAccess = (studentId) => {
 
 export const saveStudentQuestionnaire = (studentId, questionnaireData) => {
   const students = getStudents();
+  let updatedStudent = null;
+
   const updated = students.map((s) => {
     if (s.id === studentId) {
       let genderAvatar = s.avatar;
@@ -250,7 +252,7 @@ export const saveStudentQuestionnaire = (studentId, questionnaireData) => {
         genderAvatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80";
       }
 
-      return {
+      updatedStudent = {
         ...s,
         name: questionnaireData.fullName || s.name,
         gender: questionnaireData.gender || "male",
@@ -258,25 +260,76 @@ export const saveStudentQuestionnaire = (studentId, questionnaireData) => {
         questionnaireCompleted: true,
         questionnaireData
       };
+      return updatedStudent;
     }
     return s;
   });
+
   localStorage.setItem(KEYS.STUDENTS, JSON.stringify(updated));
+
+  // Actualizar la sesión activa si el usuario actual es este alumno
+  const activeSessionStr = localStorage.getItem("fittrainer_active_session_v1");
+  if (activeSessionStr && updatedStudent) {
+    try {
+      const activeSession = JSON.parse(activeSessionStr);
+      if (activeSession.user && activeSession.user.id === studentId) {
+        localStorage.setItem("fittrainer_active_session_v1", JSON.stringify({
+          ...activeSession,
+          user: updatedStudent
+        }));
+      }
+    } catch (e) {}
+  }
+
+  // Sincronizar en tiempo real con Supabase
+  if (isSupabaseConfigured() && updatedStudent) {
+    supabase.from("students").upsert([{
+      id: updatedStudent.id,
+      trainer_id: updatedStudent.trainerId,
+      name: updatedStudent.name,
+      username: updatedStudent.username,
+      password: updatedStudent.password,
+      gender: updatedStudent.gender,
+      goal: updatedStudent.goal,
+      plan_name: updatedStudent.planName,
+      plan_price: updatedStudent.planPrice,
+      status: updatedStudent.status,
+      payment_status: updatedStudent.paymentStatus,
+      next_due_date: updatedStudent.nextDueDate,
+      assigned_routine_id: updatedStudent.assignedRoutineId,
+      questionnaire_completed: true,
+      questionnaire_data: questionnaireData
+    }]).then(({ error }) => {
+      if (error) console.error("Error al guardar cuestionario en Supabase:", error);
+    });
+  }
+
   return updated;
 };
 
 export const reopenStudentQuestionnaire = (studentId) => {
   const students = getStudents();
+  let updatedStudent = null;
+
   const updated = students.map((s) => {
     if (s.id === studentId) {
-      return {
+      updatedStudent = {
         ...s,
         questionnaireCompleted: false
       };
+      return updatedStudent;
     }
     return s;
   });
   localStorage.setItem(KEYS.STUDENTS, JSON.stringify(updated));
+
+  if (isSupabaseConfigured() && updatedStudent) {
+    supabase.from("students").upsert([{
+      id: updatedStudent.id,
+      questionnaire_completed: false
+    }]).then();
+  }
+
   return updated;
 };
 

@@ -9,12 +9,14 @@ import {
   Heart,
   Moon,
   Plus,
-  Minus
+  Minus,
+  CheckCircle2
 } from "lucide-react";
 
 export const StudentOnboarding = ({ student, onCompleted }) => {
   const { refreshData } = useAuth();
   const [step, setStep] = useState(1);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   // Inicialización de respuestas con todos los datos métricos en 0 por defecto
   const [answers, setAnswers] = useState(
@@ -39,8 +41,6 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
 
   const kgWheelRef = useRef(null);
   const gmWheelRef = useRef(null);
-  const isScrollSelfTriggered = useRef(false);
-
   const ITEM_HEIGHT = 40; // 40px por elemento en la rueda
 
   // Centrar Rueda Kilos
@@ -104,7 +104,7 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
 
       saveStudentQuestionnaire(student.id, finalAnswers);
       refreshData();
-      if (onCompleted) onCompleted();
+      setIsSubmitted(true);
     }
   };
 
@@ -123,6 +123,32 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
       heightCm: Math.max(0, Math.min(230, Number(prev.heightCm || 0) + delta))
     }));
   };
+
+  if (isSubmitted) {
+    return (
+      <div className="animate-fade-in" style={{ maxWidth: "540px", margin: "40px auto", textAlign: "center" }}>
+        <div className="glass-panel" style={{ padding: "40px 24px", background: "#FFFFFF" }}>
+          <div style={{ width: "70px", height: "70px", borderRadius: "50%", background: "rgba(52,199,89,0.15)", border: "2px solid #34C759", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+            <CheckCircle2 size={38} color="#34C759" />
+          </div>
+          <h2 style={{ fontSize: "1.6rem", color: "var(--text-primary)", marginBottom: "8px" }}>¡Cuestionario Enviado con Éxito!</h2>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", marginBottom: "24px", lineHeight: "1.5" }}>
+            Tus datos de diagnóstico se han guardado correctamente. Tu entrenador ya tiene acceso a tus métricas para diseñar y personalizar tu plan de entrenamiento.
+          </p>
+
+          <button
+            className="btn btn-lime btn-lg"
+            style={{ width: "100%", borderRadius: "12px", fontSize: "1rem" }}
+            onClick={() => {
+              if (onCompleted) onCompleted();
+            }}
+          >
+            Ir a Mi Rutina <ArrowRight size={18} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: "620px", margin: "16px auto" }}>
@@ -333,7 +359,7 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
                               fontSize: isSelected ? "1.25rem" : "0.9rem",
                               color: isSelected ? "#007AFF" : "#8E8E93",
                               cursor: "pointer",
-                              transition: "all 0.1s ease"
+                              transition: "all 0.10s ease"
                             }}
                           >
                             {kg} kg
@@ -393,7 +419,7 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
                               fontSize: isSelected ? "1.25rem" : "0.9rem",
                               color: isSelected ? "#FF2D55" : "#8E8E93",
                               cursor: "pointer",
-                              transition: "all 0.1s ease"
+                              transition: "all 0.10s ease"
                             }}
                           >
                             .{gm / 100} ({gm} g)

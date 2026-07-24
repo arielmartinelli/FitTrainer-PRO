@@ -1,19 +1,34 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { Zap, Lock, User, ShieldCheck } from "lucide-react";
+import { Zap, Lock, User, ShieldCheck, CheckSquare, Square } from "lucide-react";
 
 export const CleanLoginScreen = () => {
   const { loginAdmin, loginTrainer, loginStudent } = useAuth();
   const [roleType, setRoleType] = useState("trainer"); // "trainer" | "student" | "admin"
   const [inputVal, setInputVal] = useState("");
   const [passwordVal, setPasswordVal] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Cargar credenciales recordadas al cambiar de rol o abrir la pantalla
+  useEffect(() => {
+    const key = `fittrainer_remember_credentials_${roleType}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        const { username, password } = JSON.parse(saved);
+        setInputVal(username || "");
+        setPasswordVal(password || "");
+      } catch (e) {}
+    } else {
+      setInputVal("");
+      setPasswordVal("");
+    }
+  }, [roleType]);
 
   const handleModeChange = (newRole) => {
     setRoleType(newRole);
     setErrorMsg("");
-    setInputVal("");
-    setPasswordVal("");
   };
 
   const handleSubmit = (e) => {
@@ -29,7 +44,16 @@ export const CleanLoginScreen = () => {
       res = loginStudent(inputVal, passwordVal);
     }
 
-    if (res && !res.success) {
+    if (res && res.success) {
+      if (rememberMe) {
+        localStorage.setItem(`fittrainer_remember_credentials_${roleType}`, JSON.stringify({
+          username: inputVal,
+          password: passwordVal
+        }));
+      } else {
+        localStorage.removeItem(`fittrainer_remember_credentials_${roleType}`);
+      }
+    } else if (res && !res.success) {
       setErrorMsg(res.error);
     }
   };
@@ -129,7 +153,7 @@ export const CleanLoginScreen = () => {
             </div>
           </div>
 
-          <div className="form-group" style={{ marginBottom: "20px" }}>
+          <div className="form-group" style={{ marginBottom: "14px" }}>
             <label className="form-label">Contraseña</label>
             <div style={{ position: "relative" }}>
               <Lock size={18} color="var(--text-secondary)" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }} />
@@ -143,6 +167,28 @@ export const CleanLoginScreen = () => {
                 required
               />
             </div>
+          </div>
+
+          {/* CHECKBOX RECORDAR USUARIO Y CONTRASEÑA */}
+          <div
+            onClick={() => setRememberMe(!rememberMe)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              marginBottom: "20px",
+              cursor: "pointer",
+              userSelect: "none"
+            }}
+          >
+            {rememberMe ? (
+              <CheckSquare size={18} color="var(--accent-blue)" />
+            ) : (
+              <Square size={18} color="var(--text-secondary)" />
+            )}
+            <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 500 }}>
+              Recordar usuario y contraseña
+            </span>
           </div>
 
           <button
