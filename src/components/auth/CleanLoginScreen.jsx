@@ -35,15 +35,41 @@ export const CleanLoginScreen = () => {
   };
 
   return (
-    <div style={{ minHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
-      <div className="glass-panel animate-fade-in" style={{ width: "100%", maxWidth: "440px", padding: "32px 24px", boxShadow: "0 10px 40px rgba(0,0,0,0.06)" }}>
-        
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: "100vw",
+        height: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#F2F2F7",
+        padding: "16px",
+        zIndex: 1000
+      }}
+    >
+      <div
+        className="glass-panel animate-fade-in"
+        style={{
+          width: "100%",
+          maxWidth: "420px",
+          padding: "32px 24px",
+          background: "#FFFFFF",
+          borderRadius: "20px",
+          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.08)",
+          margin: "auto"
+        }}
+      >
         {/* Logo Branding - Rayo Azul sin fondo */}
         <div style={{ textAlign: "center", marginBottom: "24px" }}>
-          <Zap size={44} color="var(--accent-blue)" strokeWidth={2.6} style={{ marginBottom: "8px" }} />
-          <h1 style={{ fontSize: "1.6rem", fontWeight: 800 }}>FitTrainer PRO</h1>
+          <Zap size={46} color="var(--accent-blue)" strokeWidth={2.6} style={{ marginBottom: "8px" }} />
+          <h1 style={{ fontSize: "1.65rem", fontWeight: 800, color: "var(--text-primary)" }}>FitTrainer PRO</h1>
           <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-            Software de Gestión de Entrenamientos y Clientes
+            Software de Gestión de Entrenamientos
           </p>
         </div>
 

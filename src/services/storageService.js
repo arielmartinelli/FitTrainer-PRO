@@ -1,4 +1,5 @@
 import { initialTrainers, initialRoutines, initialStudents, initialMasterAdmin } from "./mockData";
+import { supabase, isSupabaseConfigured } from "./supabaseClient";
 
 const KEYS = {
   MASTER: "fittrainer_master_admin_v1",
@@ -36,18 +37,36 @@ export const saveTrainer = (trainer) => {
   const trainers = getTrainers();
   const index = trainers.findIndex((t) => t.id === trainer.id);
   
+  const trainerData = {
+    ...trainer,
+    id: trainer.id || `trainer_${Date.now()}`,
+    gender: trainer.gender || "male",
+    status: trainer.status || "active",
+    avatar: trainer.avatar || "https://images.unsplash.com/photo-1567013127542-490d757e51fc?w=150&auto=format&fit=crop&q=80"
+  };
+
   if (index >= 0) {
-    trainers[index] = { ...trainers[index], ...trainer };
+    trainers[index] = { ...trainers[index], ...trainerData };
   } else {
-    trainers.push({
-      ...trainer,
-      id: trainer.id || `trainer_${Date.now()}`,
-      gender: trainer.gender || "male",
-      status: trainer.status || "active",
-      avatar: trainer.avatar || "https://images.unsplash.com/photo-1567013127542-490d757e51fc?w=150&auto=format&fit=crop&q=80"
-    });
+    trainers.push(trainerData);
   }
   localStorage.setItem(KEYS.TRAINERS, JSON.stringify(trainers));
+
+  // Sync con Supabase si está configurado
+  if (isSupabaseConfigured()) {
+    supabase.from("trainers").upsert([{
+      id: trainerData.id,
+      name: trainerData.name,
+      email: trainerData.email,
+      username: trainerData.username,
+      password: trainerData.password,
+      brand_name: trainerData.brandName || "",
+      phone: trainerData.phone || ""
+    }]).then(({ error }) => {
+      if (error) console.error("Error sincronizando profesor con Supabase:", error);
+    });
+  }
+
   return trainers;
 };
 
@@ -55,6 +74,11 @@ export const deleteTrainer = (trainerId) => {
   const trainers = getTrainers();
   const updated = trainers.filter((t) => t.id !== trainerId);
   localStorage.setItem(KEYS.TRAINERS, JSON.stringify(updated));
+
+  if (isSupabaseConfigured()) {
+    supabase.from("trainers").delete().eq("id", trainerId).then();
+  }
+
   return updated;
 };
 
@@ -97,6 +121,19 @@ export const saveRoutine = (routine) => {
     });
   }
   localStorage.setItem(KEYS.ROUTINES, JSON.stringify(routines));
+
+  if (isSupabaseConfigured()) {
+    supabase.from("routines").upsert([{
+      id: formattedRoutine.id,
+      trainer_id: formattedRoutine.trainerId,
+      title: formattedRoutine.title,
+      category: formattedRoutine.category,
+      duration_weeks: formattedRoutine.durationWeeks,
+      description: formattedRoutine.description,
+      days: formattedRoutine.days
+    }]).then();
+  }
+
   return routines;
 };
 
@@ -104,6 +141,11 @@ export const deleteRoutine = (routineId) => {
   const routines = getRoutines();
   const updated = routines.filter((r) => r.id !== routineId);
   localStorage.setItem(KEYS.ROUTINES, JSON.stringify(updated));
+
+  if (isSupabaseConfigured()) {
+    supabase.from("routines").delete().eq("id", routineId).then();
+  }
+
   return updated;
 };
 
@@ -127,24 +169,47 @@ export const saveStudent = (student) => {
     defaultAvatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80";
   }
 
+  const studentData = {
+    ...student,
+    id: student.id || `student_${Date.now()}`,
+    status: student.status || "active",
+    gender: student.gender || "male",
+    avatar: student.avatar || defaultAvatar,
+    paymentStatus: student.paymentStatus || "paid",
+    nextDueDate: student.nextDueDate || "2026-08-15",
+    questionnaireCompleted: student.questionnaireCompleted || false,
+    questionnaireData: student.questionnaireData || null,
+    payments: student.payments || [],
+    completedWorkouts: student.completedWorkouts || []
+  };
+
   if (index >= 0) {
-    students[index] = { ...students[index], ...student };
+    students[index] = { ...students[index], ...studentData };
   } else {
-    students.push({
-      ...student,
-      id: student.id || `student_${Date.now()}`,
-      status: student.status || "active",
-      gender: student.gender || "male",
-      avatar: student.avatar || defaultAvatar,
-      paymentStatus: student.paymentStatus || "paid",
-      nextDueDate: student.nextDueDate || "2026-08-15",
-      questionnaireCompleted: student.questionnaireCompleted || false,
-      questionnaireData: student.questionnaireData || null,
-      payments: student.payments || [],
-      completedWorkouts: student.completedWorkouts || []
-    });
+    students.push(studentData);
   }
   localStorage.setItem(KEYS.STUDENTS, JSON.stringify(students));
+
+  if (isSupabaseConfigured()) {
+    supabase.from("students").upsert([{
+      id: studentData.id,
+      trainer_id: studentData.trainerId,
+      name: studentData.name,
+      username: studentData.username,
+      password: studentData.password,
+      gender: studentData.gender,
+      goal: studentData.goal,
+      plan_name: studentData.planName,
+      plan_price: studentData.planPrice,
+      status: studentData.status,
+      payment_status: studentData.paymentStatus,
+      next_due_date: studentData.nextDueDate,
+      assigned_routine_id: studentData.assignedRoutineId,
+      questionnaire_completed: studentData.questionnaireCompleted,
+      questionnaire_data: studentData.questionnaireData
+    }]).then();
+  }
+
   return students;
 };
 
@@ -152,6 +217,11 @@ export const deleteStudent = (studentId) => {
   const students = getStudents();
   const updated = students.filter((s) => s.id !== studentId);
   localStorage.setItem(KEYS.STUDENTS, JSON.stringify(updated));
+
+  if (isSupabaseConfigured()) {
+    supabase.from("students").delete().eq("id", studentId).then();
+  }
+
   return updated;
 };
 
