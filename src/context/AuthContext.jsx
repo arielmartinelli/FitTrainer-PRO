@@ -5,6 +5,7 @@ import {
   getStudents,
   initializeStorage
 } from "../services/storageService";
+import { supabase, isSupabaseConfigured } from "../services/supabaseClient";
 
 const AuthContext = createContext(null);
 
@@ -15,12 +16,62 @@ export const AuthProvider = ({ children }) => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const refreshData = () => {
+  const refreshData = async () => {
     initializeStorage();
-    const loadedTrainers = getTrainers();
-    const loadedStudents = getStudents();
+    let loadedTrainers = getTrainers();
+    let loadedStudents = getStudents();
+
     setTrainers(loadedTrainers);
     setStudents(loadedStudents);
+
+    // Cargar datos remotos en vivo desde Supabase si la base de datos está conectada
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: dbTrainers } = await supabase.from("trainers").select("*");
+        const { data: dbStudents } = await supabase.from("students").select("*");
+
+        if (dbTrainers && dbTrainers.length > 0) {
+          const mappedTrainers = dbTrainers.map(t => ({
+            id: t.id,
+            name: t.name,
+            email: t.email,
+            username: t.username,
+            password: t.password,
+            brandName: t.brand_name,
+            phone: t.phone,
+            gender: t.gender || "male",
+            status: t.status || "active"
+          }));
+          setTrainers(mappedTrainers);
+          localStorage.setItem("fittrainer_trainers_v1", JSON.stringify(mappedTrainers));
+        }
+
+        if (dbStudents && dbStudents.length > 0) {
+          const mappedStudents = dbStudents.map(s => ({
+            id: s.id,
+            trainerId: s.trainer_id,
+            name: s.name,
+            username: s.username,
+            password: s.password,
+            gender: s.gender || "male",
+            goal: s.goal,
+            planName: s.plan_name,
+            planPrice: s.plan_price,
+            status: s.status || "active",
+            paymentStatus: s.payment_status || "paid",
+            nextDueDate: s.next_due_date,
+            assignedRoutineId: s.assigned_routine_id,
+            questionnaireCompleted: s.questionnaire_completed,
+            questionnaireData: s.questionnaire_data
+          }));
+          setStudents(mappedStudents);
+          localStorage.setItem("fittrainer_students_v1", JSON.stringify(mappedStudents));
+        }
+      } catch (err) {
+        console.warn("Supabase live fetch fallback to local:", err);
+      }
+    }
+
     return { loadedTrainers, loadedStudents };
   };
 
@@ -45,10 +96,10 @@ export const AuthProvider = ({ children }) => {
 
   // Login Profesor
   const loginTrainer = (input, password) => {
-    const loadedTrainers = getTrainers();
+    const loadedTrainers = trainers.length > 0 ? trainers : getTrainers();
     const trainer = loadedTrainers.find(
       (t) =>
-        (t.email.toLowerCase() === input.toLowerCase() || t.username?.toLowerCase() === input.toLowerCase()) &&
+        ((t.email || "").toLowerCase() === input.toLowerCase() || (t.username || "").toLowerCase() === input.toLowerCase()) &&
         t.password === password
     );
 
@@ -65,10 +116,10 @@ export const AuthProvider = ({ children }) => {
 
   // Login Alumno
   const loginStudent = (input, password) => {
-    const loadedStudents = getStudents();
+    const loadedStudents = students.length > 0 ? students : getStudents();
     const student = loadedStudents.find(
       (s) =>
-        (s.username?.toLowerCase() === input.toLowerCase() || s.email?.toLowerCase() === input.toLowerCase()) &&
+        ((s.username || "").toLowerCase() === input.toLowerCase() || (s.email || "").toLowerCase() === input.toLowerCase()) &&
         s.password === password
     );
 

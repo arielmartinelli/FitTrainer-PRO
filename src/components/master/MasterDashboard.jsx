@@ -410,8 +410,8 @@ export const MasterDashboard = () => {
         </div>
       )}
 
-      {/* Modal Crear / Editar Profesor (Perfectamente Centrado) */}
-      <Modal isOpen={showTrainerModal} onClose={() => setShowTrainerModal(false)} title={editingTrainer ? `Editar Profesor - ${editingTrainer.name}` : "Crear Nuevo Perfil de Profesor"}>
+      {/* Modal Crear / Editar Profesor */}
+      <Modal isOpen={showTrainerModal} onClose={() => setShowTrainerModal(false)} title={editingTrainer ? `Editar Profesor - ${editingTrainer.name}` : "Crear Perfil de Profesor"}>
         <form onSubmit={handleSaveTrainerSubmit}>
           <div className="form-group">
             <label className="form-label">Nombre del Profesor</label>
@@ -425,24 +425,25 @@ export const MasterDashboard = () => {
             />
           </div>
 
+          {/* BOTONES LIMPIOS COMPACTOS DE GÉNERO */}
           <div className="form-group">
-            <label className="form-label">Género del Profesor (Avatar Sin Cara)</label>
-            <div style={{ display: "flex", gap: "10px" }}>
+            <label className="form-label">Género del Profesor</label>
+            <div style={{ display: "flex", gap: "8px" }}>
               <button
                 type="button"
                 className={`btn ${trainerForm.gender === "male" ? "btn-primary" : "btn-secondary"}`}
-                style={{ flex: 1 }}
+                style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
                 onClick={() => setTrainerForm({ ...trainerForm, gender: "male" })}
               >
-                👨‍🏫 Masculino (Silueta Azul)
+                👨‍🏫 Masculino
               </button>
               <button
                 type="button"
                 className={`btn ${trainerForm.gender === "female" ? "btn-lime" : "btn-secondary"}`}
-                style={{ flex: 1, background: trainerForm.gender === "female" ? "#FF2D55" : "" }}
+                style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", whiteSpace: "nowrap", background: trainerForm.gender === "female" ? "#FF2D55" : "" }}
                 onClick={() => setTrainerForm({ ...trainerForm, gender: "female" })}
               >
-                👩‍🏫 Femenino (Silueta Rosa)
+                👩‍🏫 Femenino
               </button>
             </div>
           </div>
@@ -489,7 +490,7 @@ export const MasterDashboard = () => {
         </form>
       </Modal>
 
-      {/* Modal Crear / Editar Alumno (Perfectamente Centrado) */}
+      {/* Modal Crear / Editar Alumno */}
       <Modal isOpen={showStudentModal} onClose={() => setShowStudentModal(false)} title={editingStudent ? `Editar Alumno - ${editingStudent.name}` : "Crear Nuevo Alumno"}>
         <form onSubmit={handleSaveStudentSubmit}>
           <div className="form-group">
@@ -513,24 +514,25 @@ export const MasterDashboard = () => {
             />
           </div>
 
+          {/* BOTONES LIMPIOS COMPACTOS DE GÉNERO */}
           <div className="form-group">
-            <label className="form-label">Género del Alumno (Avatar Sin Cara)</label>
-            <div style={{ display: "flex", gap: "10px" }}>
+            <label className="form-label">Género del Alumno</label>
+            <div style={{ display: "flex", gap: "8px" }}>
               <button
                 type="button"
                 className={`btn ${studentForm.gender === "male" ? "btn-primary" : "btn-secondary"}`}
-                style={{ flex: 1 }}
+                style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
                 onClick={() => setStudentForm({ ...studentForm, gender: "male" })}
               >
-                👨 Masculino (Silueta Azul)
+                👨 Masculino
               </button>
               <button
                 type="button"
                 className={`btn ${studentForm.gender === "female" ? "btn-lime" : "btn-secondary"}`}
-                style={{ flex: 1, background: studentForm.gender === "female" ? "#FF2D55" : "" }}
+                style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", whiteSpace: "nowrap", background: studentForm.gender === "female" ? "#FF2D55" : "" }}
                 onClick={() => setStudentForm({ ...studentForm, gender: "female" })}
               >
-                👩 Femenino (Silueta Rosa)
+                👩 Femenino
               </button>
             </div>
           </div>
