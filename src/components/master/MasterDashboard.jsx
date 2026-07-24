@@ -40,6 +40,7 @@ export const MasterDashboard = () => {
   const [trainerForm, setTrainerForm] = useState({
     id: "",
     name: "",
+    gender: "male",
     email: "",
     username: "",
     password: "",
@@ -69,6 +70,7 @@ export const MasterDashboard = () => {
     setTrainerForm({
       id: "",
       name: "",
+      gender: "male",
       email: "",
       username: "",
       password: "",
@@ -86,6 +88,7 @@ export const MasterDashboard = () => {
     setTrainerForm({
       id: trainer.id,
       name: trainer.name,
+      gender: trainer.gender || "male",
       email: trainer.email,
       username: trainer.username || trainer.email?.split("@")[0],
       password: trainer.password,
@@ -211,7 +214,7 @@ export const MasterDashboard = () => {
             </span>
             <h1 style={{ fontSize: "1.8rem", color: "#FFF", margin: "4px 0" }}>Gestión Global de la Plataforma</h1>
             <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.9rem" }}>
-              Crea, edita o elimina profesores y alumnos, asigna relaciones y administra accesos.
+              Crea, edita o elimina profesores y alumnos, asigna relaciones y avatares por género.
             </p>
           </div>
 
@@ -255,7 +258,7 @@ export const MasterDashboard = () => {
         />
       </div>
 
-      {/* TAB 1: GESTIÓN DE PROFESORES (CON BOTONES DE EDITAR Y ELIMINAR) */}
+      {/* TAB 1: GESTIÓN DE PROFESORES (CON AVATAR POR GÉNERO, BOTONES EDITAR Y ELIMINAR) */}
       {activeTab === "trainers" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
           {filteredTrainers.length === 0 ? (
@@ -282,11 +285,12 @@ export const MasterDashboard = () => {
                 >
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                      <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#EBF5FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <span style={{ fontSize: "1.3rem" }}>👨‍🏫</span>
-                      </div>
+                      <StudentAvatar gender={t.gender || "male"} name={t.name} size={48} />
                       <div>
-                        <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{t.name}</h3>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{t.name}</h3>
+                          <span>{t.gender === "female" ? "👩‍🏫" : "👨‍🏫"}</span>
+                        </div>
                         <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>{t.brandName || "Profesor"}</span>
                       </div>
                     </div>
@@ -331,7 +335,7 @@ export const MasterDashboard = () => {
         </div>
       )}
 
-      {/* TAB 2: GESTIÓN DE ALUMNOS (CON BOTONES DE EDITAR Y ELIMINAR) */}
+      {/* TAB 2: GESTIÓN DE ALUMNOS (CON AVATAR POR GÉNERO Y ACCESO POR USUARIO) */}
       {activeTab === "students" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
           {filteredStudents.length === 0 ? (
@@ -408,7 +412,7 @@ export const MasterDashboard = () => {
         </div>
       )}
 
-      {/* Modal Crear / Editar Profesor */}
+      {/* Modal Crear / Editar Profesor (Con Selección de Género y Avatar Sin Cara) */}
       <Modal isOpen={showTrainerModal} onClose={() => setShowTrainerModal(false)} title={editingTrainer ? `Editar Profesor - ${editingTrainer.name}` : "Crear Nuevo Perfil de Profesor"}>
         <form onSubmit={handleSaveTrainerSubmit}>
           <div className="form-group">
@@ -421,6 +425,29 @@ export const MasterDashboard = () => {
               placeholder="Ej: Coach Esteban Pérez"
               required
             />
+          </div>
+
+          {/* SELECCIÓN DE GÉNERO Y AVATAR DEL PROFESOR */}
+          <div className="form-group">
+            <label className="form-label">Género del Profesor (Avatar Sin Cara)</label>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                type="button"
+                className={`btn ${trainerForm.gender === "male" ? "btn-primary" : "btn-secondary"}`}
+                style={{ flex: 1 }}
+                onClick={() => setTrainerForm({ ...trainerForm, gender: "male" })}
+              >
+                👨‍🏫 Masculino (Silueta Azul)
+              </button>
+              <button
+                type="button"
+                className={`btn ${trainerForm.gender === "female" ? "btn-lime" : "btn-secondary"}`}
+                style={{ flex: 1, background: trainerForm.gender === "female" ? "#FF2D55" : "" }}
+                onClick={() => setTrainerForm({ ...trainerForm, gender: "female" })}
+              >
+                👩‍🏫 Femenino (Silueta Rosa)
+              </button>
+            </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>

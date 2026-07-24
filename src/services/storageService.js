@@ -42,6 +42,7 @@ export const saveTrainer = (trainer) => {
     trainers.push({
       ...trainer,
       id: trainer.id || `trainer_${Date.now()}`,
+      gender: trainer.gender || "male",
       status: trainer.status || "active",
       avatar: trainer.avatar || "https://images.unsplash.com/photo-1567013127542-490d757e51fc?w=150&auto=format&fit=crop&q=80"
     });
