@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { saveStudentQuestionnaire } from "../../services/storageService";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -8,22 +8,24 @@ import {
   Activity,
   Heart,
   Moon,
-  Home,
-  Scale,
-  Ruler
+  Plus,
+  Minus,
+  CheckCircle2
 } from "lucide-react";
 
 export const StudentOnboarding = ({ student, onCompleted }) => {
   const { refreshData } = useAuth();
   const [step, setStep] = useState(1);
 
+  // Inicialización de respuestas con todos los datos métricos en 0 por defecto
   const [answers, setAnswers] = useState(
     student?.questionnaireData || {
       fullName: student?.name || "",
       gender: student?.gender || "male",
-      age: 25,
-      weightKg: 70,
-      heightCm: 175,
+      age: 0,
+      weightKg: 0,
+      weightGrams: 0,
+      heightCm: 0,
       mainGoal: student?.goal || "Hipertrofia Muscular",
       injuries: "",
       favoriteExercises: "",
@@ -41,25 +43,83 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
     if (step < 4) {
       setStep(step + 1);
     } else {
-      saveStudentQuestionnaire(student.id, answers);
+      // Calcular peso total combinado
+      const totalWeight = Number(answers.weightKg) + Number(answers.weightGrams) / 1000;
+      const finalAnswers = {
+        ...answers,
+        weightKg: Number(totalWeight.toFixed(2))
+      };
+
+      saveStudentQuestionnaire(student.id, finalAnswers);
       refreshData();
       if (onCompleted) onCompleted();
     }
   };
 
+  // Ajustar Edad
+  const updateAge = (delta) => {
+    setAnswers((prev) => ({
+      ...prev,
+      age: Math.max(0, Math.min(100, Number(prev.age || 0) + delta))
+    }));
+  };
+
+  // Ajustar Kilos de Peso
+  const updateWeightKg = (delta) => {
+    setAnswers((prev) => ({
+      ...prev,
+      weightKg: Math.max(0, Math.min(250, Number(prev.weightKg || 0) + delta))
+    }));
+  };
+
+  // Ajustar Gramos de Peso (en pasos de 100g)
+  const updateWeightGrams = (delta) => {
+    setAnswers((prev) => {
+      let currentGrams = Number(prev.weightGrams || 0) + delta;
+      let extraKg = 0;
+      if (currentGrams >= 1000) {
+        extraKg = 1;
+        currentGrams = 0;
+      } else if (currentGrams < 0) {
+        if (prev.weightKg > 0) {
+          extraKg = -1;
+          currentGrams = 900;
+        } else {
+          currentGrams = 0;
+        }
+      }
+      return {
+        ...prev,
+        weightKg: Math.max(0, Number(prev.weightKg || 0) + extraKg),
+        weightGrams: currentGrams
+      };
+    });
+  };
+
+  // Ajustar Altura en CM
+  const updateHeightCm = (delta) => {
+    setAnswers((prev) => ({
+      ...prev,
+      heightCm: Math.max(0, Math.min(230, Number(prev.heightCm || 0) + delta))
+    }));
+  };
+
+  // Total de peso formateado para visualización
+  const totalWeightFormatted = (Number(answers.weightKg || 0) + Number(answers.weightGrams || 0) / 1000).toFixed(1);
+
   return (
-    <div className="animate-fade-in" style={{ maxWidth: "600px", margin: "16px auto" }}>
+    <div className="animate-fade-in" style={{ maxWidth: "620px", margin: "16px auto" }}>
       
-      {/* Header */}
+      {/* Header Banner */}
       <div className="glass-panel" style={{ padding: "20px", marginBottom: "16px", borderLeft: "4px solid var(--accent-blue)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "6px" }}>
-          <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(0,122,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "rgba(0,122,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <ClipboardList size={22} color="var(--accent-blue)" />
           </div>
           <div>
-            <h2 style={{ fontSize: "1.3rem" }}>Cuestionario de Diagnóstico Inicial</h2>
+            <h2 style={{ fontSize: "1.3rem", margin: 0 }}>Cuestionario de Diagnóstico Inicial</h2>
             <span style={{ fontSize: "0.825rem", color: "var(--text-secondary)" }}>
-              Completa tus datos para que tu entrenador pueda diseñar tu plan a medida.
+              Completa tus métricas para que tu entrenador cree tu rutina personalizada.
             </span>
           </div>
         </div>
@@ -73,16 +133,17 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
         </div>
       </div>
 
-      {/* Form Steps */}
-      <form onSubmit={handleNextStep} className="glass-panel" style={{ padding: "20px" }}>
+      {/* Form Steps Container */}
+      <form onSubmit={handleNextStep} className="glass-panel" style={{ padding: "24px" }}>
         
-        {/* PASO 1: Datos Personales & Género (Nombre, Género, Edad, Peso, Altura) */}
+        {/* PASO 1: Datos Personales con Contadores Dinámicos e Interactivos */}
         {step === 1 && (
-          <div className="animate-fade-in">
-            <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
-              <User size={18} /> 1. Datos Personales & Biométricos
+          <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+              <User size={18} /> 1. Datos Personales & Métricas Interactivas
             </h3>
 
+            {/* Nombre Completo */}
             <div className="form-group">
               <label className="form-label">Nombre Completo</label>
               <input
@@ -94,71 +155,236 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
               />
             </div>
 
-            {/* Selector de Género */}
+            {/* Selector de Género Estilo iOS Segmented Control */}
             <div className="form-group">
-              <label className="form-label">Género</label>
-              <div style={{ display: "flex", gap: "10px" }}>
+              <label className="form-label">Género del Alumno</label>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "8px",
+                background: "#F2F2F7",
+                padding: "4px",
+                borderRadius: "12px"
+              }}>
                 <button
                   type="button"
-                  className={`btn ${answers.gender === "male" ? "btn-primary" : "btn-secondary"}`}
-                  style={{ flex: 1, padding: "12px", borderRadius: "12px" }}
                   onClick={() => setAnswers({ ...answers, gender: "male" })}
+                  style={{
+                    border: "none",
+                    padding: "10px 12px",
+                    borderRadius: "10px",
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.16s ease",
+                    background: answers.gender === "male" ? "#007AFF" : "transparent",
+                    color: answers.gender === "male" ? "#FFFFFF" : "var(--text-secondary)",
+                    boxShadow: answers.gender === "male" ? "0 2px 8px rgba(0,122,255,0.3)" : "none"
+                  }}
                 >
                   👨 Masculino
                 </button>
+
                 <button
                   type="button"
-                  className={`btn ${answers.gender === "female" ? "btn-lime" : "btn-secondary"}`}
-                  style={{ flex: 1, padding: "12px", borderRadius: "12px", background: answers.gender === "female" ? "#FF2D55" : "" }}
                   onClick={() => setAnswers({ ...answers, gender: "female" })}
+                  style={{
+                    border: "none",
+                    padding: "10px 12px",
+                    borderRadius: "10px",
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.16s ease",
+                    background: answers.gender === "female" ? "#FF2D55" : "transparent",
+                    color: answers.gender === "female" ? "#FFFFFF" : "var(--text-secondary)",
+                    boxShadow: answers.gender === "female" ? "0 2px 8px rgba(255,45,85,0.3)" : "none"
+                  }}
                 >
                   👩 Femenino
                 </button>
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
-              <div className="form-group">
-                <label className="form-label">Edad</label>
-                <input
-                  type="number"
-                  className="form-input"
-                  value={answers.age}
-                  onChange={(e) => setAnswers({ ...answers, age: e.target.value })}
-                  required
-                />
+            {/* CONTADOR INTERACTIVO 1: EDAD */}
+            <div style={{ background: "#F2F2F7", padding: "18px", borderRadius: "16px", textAlign: "center" }}>
+              <label className="form-label" style={{ marginBottom: "8px", display: "block", color: "var(--text-secondary)" }}>🎂 EDAD (AÑOS)</label>
+              
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "20px" }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => updateAge(-1)}
+                  style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  <Minus size={20} color="var(--text-primary)" />
+                </button>
+
+                <div style={{ minWidth: "100px" }}>
+                  <span style={{ fontSize: "2.4rem", fontWeight: 800, color: "var(--accent-blue)" }}>{answers.age}</span>
+                  <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginLeft: "4px" }}>años</span>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => updateAge(1)}
+                  style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  <Plus size={20} color="var(--text-primary)" />
+                </button>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Peso (kg)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  className="form-input"
-                  value={answers.weightKg}
-                  onChange={(e) => setAnswers({ ...answers, weightKg: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Altura (cm)</label>
-                <input
-                  type="number"
-                  className="form-input"
-                  value={answers.heightCm}
-                  onChange={(e) => setAnswers({ ...answers, heightCm: e.target.value })}
-                  required
-                />
+              {/* Botones Rápidos de Edad */}
+              <div style={{ display: "flex", justifyContent: "center", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
+                {[18, 22, 25, 30, 35, 40].map((presetAge) => (
+                  <button
+                    key={presetAge}
+                    type="button"
+                    onClick={() => setAnswers({ ...answers, age: presetAge })}
+                    style={{
+                      border: "none",
+                      padding: "4px 10px",
+                      borderRadius: "14px",
+                      fontSize: "0.75rem",
+                      cursor: "pointer",
+                      background: answers.age === presetAge ? "var(--accent-blue)" : "#E5E5EA",
+                      color: answers.age === presetAge ? "#FFF" : "var(--text-primary)"
+                    }}
+                  >
+                    {presetAge}
+                  </button>
+                ))}
               </div>
             </div>
+
+            {/* CONTADOR INTERACTIVO 2: PESO (KILOS Y GRAMOS) */}
+            <div style={{ background: "#F2F2F7", padding: "18px", borderRadius: "16px", textAlign: "center" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <label className="form-label" style={{ margin: 0, color: "var(--text-secondary)" }}>⚖️ PESO CORPORAL</label>
+                <span className="badge badge-blue" style={{ fontSize: "0.85rem", fontWeight: 700 }}>
+                  Total: {totalWeightFormatted} kg
+                </span>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                
+                {/* Control Kilos */}
+                <div style={{ background: "#FFFFFF", padding: "12px", borderRadius: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600 }}>KILOS</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "6px" }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => updateWeightKg(-1)}
+                      style={{ borderRadius: "50%", width: "32px", height: "32px", padding: 0 }}
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <span style={{ fontSize: "1.4rem", fontWeight: 800 }}>{answers.weightKg} <small style={{ fontSize: "0.75rem" }}>kg</small></span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => updateWeightKg(1)}
+                      style={{ borderRadius: "50%", width: "32px", height: "32px", padding: 0 }}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Control Gramos */}
+                <div style={{ background: "#FFFFFF", padding: "12px", borderRadius: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600 }}>GRAMOS</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "6px" }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => updateWeightGrams(-100)}
+                      style={{ borderRadius: "50%", width: "32px", height: "32px", padding: 0 }}
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <span style={{ fontSize: "1.4rem", fontWeight: 800 }}>{answers.weightGrams} <small style={{ fontSize: "0.75rem" }}>g</small></span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => updateWeightGrams(100)}
+                      style={{ borderRadius: "50%", width: "32px", height: "32px", padding: 0 }}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* RODILLO / DIAL INTERACTIVO 3: ALTURA EN CENTÍMETROS */}
+            <div style={{ background: "#F2F2F7", padding: "18px", borderRadius: "16px", textAlign: "center" }}>
+              <label className="form-label" style={{ marginBottom: "8px", display: "block", color: "var(--text-secondary)" }}>📏 ALTURA (CENTÍMETROS)</label>
+              
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "16px", marginBottom: "12px" }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => updateHeightCm(-1)}
+                  style={{ width: "42px", height: "42px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  <Minus size={18} />
+                </button>
+
+                <div>
+                  <span style={{ fontSize: "2.4rem", fontWeight: 800, color: "var(--accent-blue)" }}>{answers.heightCm}</span>
+                  <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginLeft: "4px" }}>cm</span>
+                  <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>({(answers.heightCm / 100).toFixed(2)} m)</div>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => updateHeightCm(1)}
+                  style={{ width: "42px", height: "42px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+
+              {/* Slider de Rodillo / Regla Estilo iOS/Android Wheel */}
+              <div style={{ position: "relative", padding: "10px 0" }}>
+                <input
+                  type="range"
+                  min="0"
+                  max="220"
+                  value={answers.heightCm}
+                  onChange={(e) => setAnswers({ ...answers, heightCm: Number(e.target.value) })}
+                  style={{
+                    width: "100%",
+                    accentColor: "var(--accent-blue)",
+                    height: "8px",
+                    borderRadius: "4px",
+                    cursor: "pointer"
+                  }}
+                />
+                
+                {/* Visual Ticks de la Regla */}
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "0.7rem", color: "var(--text-secondary)" }}>
+                  <span>0 cm</span>
+                  <span>140 cm</span>
+                  <span>170 cm</span>
+                  <span>200 cm</span>
+                  <span>220 cm</span>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 
         {/* PASO 2: Objetivo y Salud / Lesiones */}
         {step === 2 && (
-          <div className="animate-fade-in">
-            <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
               <Activity size={18} /> 2. Objetivo Principal & Historial de Salud
             </h3>
 
@@ -192,8 +418,8 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
 
         {/* PASO 3: Preferencias de Ejercicios y Nivel */}
         {step === 3 && (
-          <div className="animate-fade-in">
-            <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
               <Heart size={18} /> 3. Gustos de Ejercicios & Experiencia
             </h3>
 
@@ -238,12 +464,12 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
 
         {/* PASO 4: Hábitos y Disponibilidad */}
         {step === 4 && (
-          <div className="animate-fade-in">
-            <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
               <Moon size={18} /> 4. Sueño, Estrés & Disponibilidad
             </h3>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
               <div className="form-group">
                 <label className="form-label">Horas de Sueño</label>
                 <select
@@ -304,7 +530,7 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
         )}
 
         {/* Buttons */}
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", marginTop: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", marginTop: "24px" }}>
           {step > 1 ? (
             <button type="button" className="btn btn-secondary" onClick={() => setStep(step - 1)}>
               Anterior
