@@ -6,6 +6,7 @@ import {
   toggleTrainerAccess,
   toggleStudentAccess
 } from "../../services/storageService";
+import { StudentAvatar } from "../common/StudentAvatar";
 import { Modal } from "../common/Modal";
 import {
   ShieldAlert,
@@ -43,7 +44,7 @@ export const MasterDashboard = () => {
 
   const [newStudentForm, setNewStudentForm] = useState({
     name: "",
-    email: "",
+    gender: "male",
     phone: "",
     trainerId: trainers[0]?.id || "",
     joinDate: new Date().toISOString().split("T")[0],
@@ -89,14 +90,14 @@ export const MasterDashboard = () => {
     });
   };
 
-  // Crear Alumno y Asignar a Profesor
+  // Crear Alumno y Asignar a Profesor (con selección de Género para Avatar Sin Cara)
   const handleCreateStudentSubmit = (e) => {
     e.preventDefault();
-    if (!newStudentForm.name) return;
+    if (!newStudentForm.name || !newStudentForm.username) return;
 
     saveStudent({
       ...newStudentForm,
-      username: newStudentForm.username || newStudentForm.name.toLowerCase().replace(/\s+/g, ""),
+      username: newStudentForm.username,
       password: newStudentForm.password || "alumno123"
     });
 
@@ -105,11 +106,11 @@ export const MasterDashboard = () => {
   };
 
   const filteredTrainers = trainers.filter(
-    (t) => t.name.toLowerCase().includes(searchQuery.toLowerCase()) || t.email.toLowerCase().includes(searchQuery.toLowerCase())
+    (t) => t.name.toLowerCase().includes(searchQuery.toLowerCase()) || (t.email || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredStudents = students.filter(
-    (s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.email.toLowerCase().includes(searchQuery.toLowerCase())
+    (s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || (s.username || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -124,7 +125,7 @@ export const MasterDashboard = () => {
             </span>
             <h1 style={{ fontSize: "1.8rem", color: "#FFF", margin: "4px 0" }}>Gestión Global de la Plataforma</h1>
             <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.9rem" }}>
-              Crea profesores y alumnos, asigna relaciones y quita o restaura permisos de acceso.
+              Crea profesores y alumnos con su usuario de acceso y asigna avatares por género.
             </p>
           </div>
 
@@ -162,7 +163,7 @@ export const MasterDashboard = () => {
           type="text"
           className="form-input"
           style={{ background: "transparent", border: "none" }}
-          placeholder="Buscar profesor o alumno por nombre o email..."
+          placeholder="Buscar por nombre o usuario..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -190,7 +191,9 @@ export const MasterDashboard = () => {
               >
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                    <img src={t.avatar} alt={t.name} style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#E5E5EA" }} />
+                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#EBF5FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: "1.3rem" }}>👨‍🏫</span>
+                    </div>
                     <div>
                       <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{t.name}</h3>
                       <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>{t.brandName || "Profesor"}</span>
@@ -223,7 +226,7 @@ export const MasterDashboard = () => {
         </div>
       )}
 
-      {/* TAB 2: GESTIÓN DE ALUMNOS */}
+      {/* TAB 2: GESTIÓN DE ALUMNOS (CON AVATAR POR GÉNERO Y ACCESO POR USUARIO) */}
       {activeTab === "students" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
           {filteredStudents.map((s) => {
@@ -245,16 +248,20 @@ export const MasterDashboard = () => {
               >
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                    <img src={s.avatar} alt={s.name} style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#E5E5EA" }} />
+                    <StudentAvatar gender={s.gender} name={s.name} size={48} />
                     <div>
-                      <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{s.name}</h3>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{s.name}</h3>
+                        <span>{s.gender === "female" ? "👩" : "👨"}</span>
+                      </div>
                       <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>{s.goal}</span>
                     </div>
                   </div>
 
                   <div style={{ background: "#F2F2F7", padding: "10px", borderRadius: "8px", fontSize: "0.8rem", display: "flex", flexDirection: "column", gap: "4px", marginBottom: "14px" }}>
                     <div>👨‍🏫 Profesor Asignado: <strong style={{ color: "var(--accent-blue)" }}>{assignedTrainer?.name || "Sin asignar"}</strong></div>
-                    <div>🔑 Login: <strong>{s.username}</strong> / Clave: <strong>{s.password}</strong></div>
+                    <div>🔑 Usuario Login: <strong style={{ color: "var(--accent-blue)" }}>{s.username}</strong></div>
+                    <div>🔐 Contraseña: <strong>{s.password}</strong></div>
                   </div>
                 </div>
 
@@ -323,8 +330,8 @@ export const MasterDashboard = () => {
         </form>
       </Modal>
 
-      {/* Modal Crear Alumno */}
-      <Modal isOpen={showStudentModal} onClose={() => setShowStudentModal(false)} title="Crear Nuevo Alumno y Asignar a Profesor">
+      {/* Modal Crear Alumno por Admin (Con Selección de Género y Usuario de Acceso) */}
+      <Modal isOpen={showStudentModal} onClose={() => setShowStudentModal(false)} title="Crear Alumno (Admin)">
         <form onSubmit={handleCreateStudentSubmit}>
           <div className="form-group">
             <label className="form-label">Nombre Completo del Alumno</label>
@@ -347,6 +354,29 @@ export const MasterDashboard = () => {
             />
           </div>
 
+          {/* SELECCIÓN DE GÉNERO Y AVATAR */}
+          <div className="form-group">
+            <label className="form-label">Género del Alumno (Avatar Sin Cara)</label>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                type="button"
+                className={`btn ${newStudentForm.gender === "male" ? "btn-primary" : "btn-secondary"}`}
+                style={{ flex: 1 }}
+                onClick={() => setNewStudentForm({ ...newStudentForm, gender: "male" })}
+              >
+                👨 Masculino (Silueta Azul)
+              </button>
+              <button
+                type="button"
+                className={`btn ${newStudentForm.gender === "female" ? "btn-lime" : "btn-secondary"}`}
+                style={{ flex: 1, background: newStudentForm.gender === "female" ? "#FF2D55" : "" }}
+                onClick={() => setNewStudentForm({ ...newStudentForm, gender: "female" })}
+              >
+                👩 Femenino (Silueta Rosa)
+              </button>
+            </div>
+          </div>
+
           <div className="form-group">
             <label className="form-label">Asignar a Profesor</label>
             <select
@@ -363,12 +393,13 @@ export const MasterDashboard = () => {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
             <div className="form-group">
-              <label className="form-label">Usuario de Login</label>
+              <label className="form-label">Usuario de Acceso (Sin mail)</label>
               <input
                 type="text"
                 className="form-input"
                 value={newStudentForm.username}
                 onChange={(e) => setNewStudentForm({ ...newStudentForm, username: e.target.value })}
+                placeholder="nicolas.fit"
                 required
               />
             </div>
@@ -379,6 +410,7 @@ export const MasterDashboard = () => {
                 className="form-input"
                 value={newStudentForm.password}
                 onChange={(e) => setNewStudentForm({ ...newStudentForm, password: e.target.value })}
+                placeholder="nicolas123"
                 required
               />
             </div>
