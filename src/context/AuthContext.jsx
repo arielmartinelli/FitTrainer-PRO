@@ -8,6 +8,7 @@ import {
 import { supabase, isSupabaseConfigured } from "../services/supabaseClient";
 
 const AuthContext = createContext(null);
+const SESSION_KEY = "fittrainer_active_session_v1";
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -77,8 +78,30 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     refreshData();
+
+    // Restaurar sesión guardada para que no pida usuario y contraseña cada vez que recargas
+    const savedSessionStr = localStorage.getItem(SESSION_KEY);
+    if (savedSessionStr) {
+      try {
+        const savedSession = JSON.parse(savedSessionStr);
+        if (savedSession && savedSession.user && savedSession.role) {
+          setCurrentUser(savedSession.user);
+          setRole(savedSession.role);
+        }
+      } catch (e) {
+        console.warn("Session restore error:", e);
+      }
+    }
+
     setLoading(false);
   }, []);
+
+  // Guardar sesión en almacenamiento persistente
+  const persistSession = (user, roleType) => {
+    setCurrentUser(user);
+    setRole(roleType);
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ user, role: roleType }));
+  };
 
   // Login Administrador (Super Admin)
   const loginAdmin = (username, password) => {
@@ -87,8 +110,7 @@ export const AuthProvider = ({ children }) => {
       (username.toLowerCase() === admin.username.toLowerCase() || username.toLowerCase() === admin.email.toLowerCase()) &&
       password === admin.password
     ) {
-      setCurrentUser(admin);
-      setRole("admin");
+      persistSession(admin, "admin");
       return { success: true, user: admin };
     }
     return { success: false, error: "Credenciales de Administrador incorrectas." };
@@ -107,8 +129,7 @@ export const AuthProvider = ({ children }) => {
       if (trainer.status === "revoked") {
         return { success: false, error: "⛔ Tu acceso de profesor ha sido suspendido por el Administrador." };
       }
-      setCurrentUser(trainer);
-      setRole("trainer");
+      persistSession(trainer, "trainer");
       return { success: true, user: trainer };
     }
     return { success: false, error: "Usuario/Email o contraseña de profesor incorrectos." };
@@ -127,8 +148,7 @@ export const AuthProvider = ({ children }) => {
       if (student.status === "revoked") {
         return { success: false, error: "⛔ Tu acceso de alumno ha sido suspendido. Consulta con tu profesor o administrador para restaurarlo." };
       }
-      setCurrentUser(student);
-      setRole("student");
+      persistSession(student, "student");
       return { success: true, user: student };
     }
     return { success: false, error: "Usuario o contraseña de alumno incorrectos." };
@@ -137,6 +157,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setCurrentUser(null);
     setRole("guest");
+    localStorage.removeItem(SESSION_KEY);
   };
 
   return (
