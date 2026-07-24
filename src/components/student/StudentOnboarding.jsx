@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { saveStudentQuestionnaire } from "../../services/storageService";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -23,6 +23,7 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
       gender: student?.gender || "male",
       age: 0,
       weightKg: 0,
+      weightGrams: 0,
       heightCm: 0,
       mainGoal: student?.goal || "Hipertrofia Muscular",
       injuries: "",
@@ -36,12 +37,41 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
     }
   );
 
+  const kgWheelRef = useRef(null);
+  const gmWheelRef = useRef(null);
+
+  // Auto-scroll para las ruedas de peso al seleccionar
+  useEffect(() => {
+    if (kgWheelRef.current) {
+      const selectedKgEl = kgWheelRef.current.children[answers.weightKg];
+      if (selectedKgEl) {
+        kgWheelRef.current.scrollTop = selectedKgEl.offsetTop - kgWheelRef.current.clientHeight / 2 + 16;
+      }
+    }
+  }, [answers.weightKg, step]);
+
+  useEffect(() => {
+    if (gmWheelRef.current) {
+      const gmIndex = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900].indexOf(answers.weightGrams);
+      if (gmIndex >= 0 && gmWheelRef.current.children[gmIndex]) {
+        const selectedGmEl = gmWheelRef.current.children[gmIndex];
+        gmWheelRef.current.scrollTop = selectedGmEl.offsetTop - gmWheelRef.current.clientHeight / 2 + 16;
+      }
+    }
+  }, [answers.weightGrams, step]);
+
   const handleNextStep = (e) => {
     e.preventDefault();
     if (step < 4) {
       setStep(step + 1);
     } else {
-      saveStudentQuestionnaire(student.id, answers);
+      const totalWeight = Number(answers.weightKg) + Number(answers.weightGrams) / 1000;
+      const finalAnswers = {
+        ...answers,
+        weightKg: Number(totalWeight.toFixed(2))
+      };
+
+      saveStudentQuestionnaire(student.id, finalAnswers);
       refreshData();
       if (onCompleted) onCompleted();
     }
@@ -55,14 +85,6 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
     }));
   };
 
-  // Ajustar Peso en Kilos (Rodillo fluido)
-  const updateWeightKg = (delta) => {
-    setAnswers((prev) => ({
-      ...prev,
-      weightKg: Math.max(0, Math.min(220, Number((Number(prev.weightKg || 0) + delta).toFixed(1))))
-    }));
-  };
-
   // Ajustar Altura en CM
   const updateHeightCm = (delta) => {
     setAnswers((prev) => ({
@@ -70,6 +92,9 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
       heightCm: Math.max(0, Math.min(230, Number(prev.heightCm || 0) + delta))
     }));
   };
+
+  // Total de peso para la insignia de visualización
+  const totalWeightDisplay = (Number(answers.weightKg || 0) + Number(answers.weightGrams || 0) / 1000).toFixed(1);
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: "620px", margin: "16px auto" }}>
@@ -100,7 +125,7 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
       {/* Form Steps Container */}
       <form onSubmit={handleNextStep} className="glass-panel" style={{ padding: "24px" }}>
         
-        {/* PASO 1: Datos Personales con Rodillos e Interactivos */}
+        {/* PASO 1: Datos Personales con Ruedas de Peso e Interactivos */}
         {step === 1 && (
           <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
@@ -222,61 +247,90 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
               </div>
             </div>
 
-            {/* RODILLO / DIAL INTERACTIVO RÁPIDO 2: PESO CORPORAL (KILOS & DECIMATION) */}
-            <div style={{ background: "#F2F2F7", padding: "18px", borderRadius: "16px", textAlign: "center" }}>
-              <label className="form-label" style={{ marginBottom: "8px", display: "block", color: "var(--text-secondary)" }}>⚖️ PESO CORPORAL (KG)</label>
-              
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "20px", marginBottom: "12px" }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => updateWeightKg(-0.5)}
-                  style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  <Minus size={20} color="var(--text-primary)" />
-                </button>
-
-                <div>
-                  <span style={{ fontSize: "2.5rem", fontWeight: 800, color: "var(--accent-blue)" }}>{answers.weightKg}</span>
-                  <span style={{ fontSize: "1rem", color: "var(--text-secondary)", marginLeft: "4px", fontWeight: 700 }}>kg</span>
-                </div>
-
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => updateWeightKg(0.5)}
-                  style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  <Plus size={20} color="var(--text-primary)" />
-                </button>
+            {/* RUEDA DOBLE DE PESO CORPORAL (RUEDA 1: KILOS | RUEDA 2: GRAMOS) */}
+            <div style={{ background: "#F2F2F7", padding: "18px", borderRadius: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <label className="form-label" style={{ margin: 0, color: "var(--text-secondary)" }}>⚖️ PESO CORPORAL (RUEDA KG & GRAMOS)</label>
+                <span className="badge badge-blue" style={{ fontSize: "0.9rem", fontWeight: 800, padding: "4px 10px" }}>
+                  {totalWeightDisplay} kg
+                </span>
               </div>
 
-              {/* Slider de Rodillo Rápido de Peso */}
-              <div style={{ position: "relative", padding: "8px 0" }}>
-                <input
-                  type="range"
-                  min="0"
-                  max="200"
-                  step="0.5"
-                  value={answers.weightKg}
-                  onChange={(e) => setAnswers({ ...answers, weightKg: Number(e.target.value) })}
-                  style={{
-                    width: "100%",
-                    accentColor: "var(--accent-blue)",
-                    height: "10px",
-                    borderRadius: "5px",
-                    cursor: "pointer"
-                  }}
-                />
-
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "0.72rem", color: "var(--text-secondary)" }}>
-                  <span>0 kg</span>
-                  <span>50 kg</span>
-                  <span>75 kg</span>
-                  <span>100 kg</span>
-                  <span>150 kg</span>
-                  <span>200 kg</span>
+              {/* RUEDA DOBLE TIPO DRUM PICKER DE IPHONE */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                
+                {/* RUEDA 1: KILOS */}
+                <div style={{ textAlign: "center" }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 700, display: "block", marginBottom: "4px" }}>RUEDA KILOS (0 a 200 KG)</span>
+                  <div
+                    ref={kgWheelRef}
+                    style={{
+                      height: "150px",
+                      overflowY: "scroll",
+                      background: "#FFFFFF",
+                      borderRadius: "12px",
+                      border: "2px solid var(--accent-blue)",
+                      boxShadow: "inset 0 4px 12px rgba(0,0,0,0.06)",
+                      scrollSnapType: "y mandatory"
+                    }}
+                  >
+                    {Array.from({ length: 201 }, (_, i) => i).map((kg) => (
+                      <div
+                        key={kg}
+                        onClick={() => setAnswers({ ...answers, weightKg: kg })}
+                        style={{
+                          padding: "10px 0",
+                          scrollSnapAlign: "center",
+                          fontWeight: answers.weightKg === kg ? 800 : 400,
+                          fontSize: answers.weightKg === kg ? "1.3rem" : "0.9rem",
+                          color: answers.weightKg === kg ? "#007AFF" : "var(--text-secondary)",
+                          background: answers.weightKg === kg ? "rgba(0,122,255,0.12)" : "transparent",
+                          cursor: "pointer",
+                          transition: "all 0.12s ease"
+                        }}
+                      >
+                        {kg} kg
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
+                {/* RUEDA 2: GRAMOS */}
+                <div style={{ textAlign: "center" }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 700, display: "block", marginBottom: "4px" }}>RUEDA GRAMOS (0 a 900 GR)</span>
+                  <div
+                    ref={gmWheelRef}
+                    style={{
+                      height: "150px",
+                      overflowY: "scroll",
+                      background: "#FFFFFF",
+                      borderRadius: "12px",
+                      border: "2px solid #FF2D55",
+                      boxShadow: "inset 0 4px 12px rgba(0,0,0,0.06)",
+                      scrollSnapType: "y mandatory"
+                    }}
+                  >
+                    {[0, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((gm) => (
+                      <div
+                        key={gm}
+                        onClick={() => setAnswers({ ...answers, weightGrams: gm })}
+                        style={{
+                          padding: "10px 0",
+                          scrollSnapAlign: "center",
+                          fontWeight: answers.weightGrams === gm ? 800 : 400,
+                          fontSize: answers.weightGrams === gm ? "1.3rem" : "0.9rem",
+                          color: answers.weightGrams === gm ? "#FF2D55" : "var(--text-secondary)",
+                          background: answers.weightGrams === gm ? "rgba(255,45,85,0.12)" : "transparent",
+                          cursor: "pointer",
+                          transition: "all 0.12s ease"
+                        }}
+                      >
+                        .{gm / 100} ({gm} g)
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
               </div>
 
               {/* Botones de Salto Rápido de Peso */}
