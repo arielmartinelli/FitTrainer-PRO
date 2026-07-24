@@ -258,9 +258,9 @@ export const MasterDashboard = () => {
         />
       </div>
 
-      {/* TAB 1: GESTIÓN DE PROFESORES (CON AVATAR POR GÉNERO, BOTONES EDITAR Y ELIMINAR) */}
+      {/* TAB 1: GESTIÓN DE PROFESORES */}
       {activeTab === "trainers" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
           {filteredTrainers.length === 0 ? (
             <div className="glass-panel" style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)", gridColumn: "1 / -1" }}>
               No hay profesores registrados. Presiona "Crear Profesor" para añadir el primero.
@@ -317,7 +317,6 @@ export const MasterDashboard = () => {
                       </button>
                     </div>
 
-                    {/* BOTONES DOBLES EDITAR Y ELIMINAR */}
                     <div style={{ display: "flex", gap: "8px" }}>
                       <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => handleOpenEditTrainer(t)}>
                         <Edit size={14} /> Editar
@@ -335,9 +334,9 @@ export const MasterDashboard = () => {
         </div>
       )}
 
-      {/* TAB 2: GESTIÓN DE ALUMNOS (CON AVATAR POR GÉNERO Y ACCESO POR USUARIO) */}
+      {/* TAB 2: GESTIÓN DE ALUMNOS */}
       {activeTab === "students" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
           {filteredStudents.length === 0 ? (
             <div className="glass-panel" style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)", gridColumn: "1 / -1" }}>
               No hay alumnos registrados. Presiona "Crear Alumno" para añadir el primero.
@@ -394,7 +393,6 @@ export const MasterDashboard = () => {
                       </button>
                     </div>
 
-                    {/* BOTONES DOBLES EDITAR Y ELIMINAR */}
                     <div style={{ display: "flex", gap: "8px" }}>
                       <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => handleOpenEditStudent(s)}>
                         <Edit size={14} /> Editar
@@ -412,7 +410,7 @@ export const MasterDashboard = () => {
         </div>
       )}
 
-      {/* Modal Crear / Editar Profesor (Con Selección de Género y Avatar Sin Cara) */}
+      {/* Modal Crear / Editar Profesor (Perfectamente Centrado) */}
       <Modal isOpen={showTrainerModal} onClose={() => setShowTrainerModal(false)} title={editingTrainer ? `Editar Profesor - ${editingTrainer.name}` : "Crear Nuevo Perfil de Profesor"}>
         <form onSubmit={handleSaveTrainerSubmit}>
           <div className="form-group">
@@ -427,7 +425,6 @@ export const MasterDashboard = () => {
             />
           </div>
 
-          {/* SELECCIÓN DE GÉNERO Y AVATAR DEL PROFESOR */}
           <div className="form-group">
             <label className="form-label">Género del Profesor (Avatar Sin Cara)</label>
             <div style={{ display: "flex", gap: "10px" }}>
@@ -450,7 +447,7 @@ export const MasterDashboard = () => {
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
             <div className="form-group">
               <label className="form-label">Email de Acceso</label>
               <input
@@ -492,7 +489,7 @@ export const MasterDashboard = () => {
         </form>
       </Modal>
 
-      {/* Modal Crear / Editar Alumno */}
+      {/* Modal Crear / Editar Alumno (Perfectamente Centrado) */}
       <Modal isOpen={showStudentModal} onClose={() => setShowStudentModal(false)} title={editingStudent ? `Editar Alumno - ${editingStudent.name}` : "Crear Nuevo Alumno"}>
         <form onSubmit={handleSaveStudentSubmit}>
           <div className="form-group">
@@ -516,7 +513,6 @@ export const MasterDashboard = () => {
             />
           </div>
 
-          {/* SELECCIÓN DE GÉNERO Y AVATAR */}
           <div className="form-group">
             <label className="form-label">Género del Alumno (Avatar Sin Cara)</label>
             <div style={{ display: "flex", gap: "10px" }}>
@@ -553,7 +549,7 @@ export const MasterDashboard = () => {
             </select>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
             <div className="form-group">
               <label className="form-label">Usuario de Acceso</label>
               <input

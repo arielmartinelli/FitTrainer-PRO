@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { X } from "lucide-react";
 
-export const Modal = ({ isOpen, onClose, title, children, maxWidth = "600px" }) => {
+export const Modal = ({ isOpen, onClose, title, children, maxWidth = "560px" }) => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape" && isOpen) onClose();
@@ -20,12 +20,13 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = "600px" }) 
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(5, 7, 10, 0.85)",
-        backdropFilter: "blur(8px)",
+        backgroundColor: "rgba(0, 0, 0, 0.55)",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 1000,
+        zIndex: 2500,
         padding: "16px"
       }}
       onClick={onClose}
@@ -39,17 +40,20 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = "600px" }) 
           overflowY: "auto",
           padding: "24px",
           position: "relative",
-          boxShadow: "0 20px 50px rgba(0,0,0,0.9)",
-          border: "1px solid rgba(255, 255, 255, 0.12)"
+          margin: "auto",
+          borderRadius: "20px",
+          background: "#FFFFFF",
+          boxShadow: "0 24px 60px rgba(0, 0, 0, 0.25)",
+          border: "1px solid var(--border-subtle)"
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
-          <h3 style={{ fontSize: "1.25rem", margin: 0 }}>{title}</h3>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "12px" }}>
+          <h3 style={{ fontSize: "1.25rem", margin: 0, color: "var(--text-primary)", fontWeight: 700 }}>{title}</h3>
           <button
             className="btn btn-ghost btn-sm"
             onClick={onClose}
-            style={{ borderRadius: "50%", padding: "6px", width: "32px", height: "32px" }}
+            style={{ borderRadius: "50%", padding: "6px", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             <X size={18} />
           </button>
