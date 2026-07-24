@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { saveStudentQuestionnaire } from "../../services/storageService";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -9,8 +9,7 @@ import {
   Heart,
   Moon,
   Plus,
-  Minus,
-  CheckCircle2
+  Minus
 } from "lucide-react";
 
 export const StudentOnboarding = ({ student, onCompleted }) => {
@@ -24,7 +23,6 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
       gender: student?.gender || "male",
       age: 0,
       weightKg: 0,
-      weightGrams: 0,
       heightCm: 0,
       mainGoal: student?.goal || "Hipertrofia Muscular",
       injuries: "",
@@ -43,14 +41,7 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
     if (step < 4) {
       setStep(step + 1);
     } else {
-      // Calcular peso total combinado
-      const totalWeight = Number(answers.weightKg) + Number(answers.weightGrams) / 1000;
-      const finalAnswers = {
-        ...answers,
-        weightKg: Number(totalWeight.toFixed(2))
-      };
-
-      saveStudentQuestionnaire(student.id, finalAnswers);
+      saveStudentQuestionnaire(student.id, answers);
       refreshData();
       if (onCompleted) onCompleted();
     }
@@ -64,36 +55,12 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
     }));
   };
 
-  // Ajustar Kilos de Peso
+  // Ajustar Peso en Kilos (Rodillo fluido)
   const updateWeightKg = (delta) => {
     setAnswers((prev) => ({
       ...prev,
-      weightKg: Math.max(0, Math.min(250, Number(prev.weightKg || 0) + delta))
+      weightKg: Math.max(0, Math.min(220, Number((Number(prev.weightKg || 0) + delta).toFixed(1))))
     }));
-  };
-
-  // Ajustar Gramos de Peso (en pasos de 100g)
-  const updateWeightGrams = (delta) => {
-    setAnswers((prev) => {
-      let currentGrams = Number(prev.weightGrams || 0) + delta;
-      let extraKg = 0;
-      if (currentGrams >= 1000) {
-        extraKg = 1;
-        currentGrams = 0;
-      } else if (currentGrams < 0) {
-        if (prev.weightKg > 0) {
-          extraKg = -1;
-          currentGrams = 900;
-        } else {
-          currentGrams = 0;
-        }
-      }
-      return {
-        ...prev,
-        weightKg: Math.max(0, Number(prev.weightKg || 0) + extraKg),
-        weightGrams: currentGrams
-      };
-    });
   };
 
   // Ajustar Altura en CM
@@ -103,9 +70,6 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
       heightCm: Math.max(0, Math.min(230, Number(prev.heightCm || 0) + delta))
     }));
   };
-
-  // Total de peso formateado para visualización
-  const totalWeightFormatted = (Number(answers.weightKg || 0) + Number(answers.weightGrams || 0) / 1000).toFixed(1);
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: "620px", margin: "16px auto" }}>
@@ -136,7 +100,7 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
       {/* Form Steps Container */}
       <form onSubmit={handleNextStep} className="glass-panel" style={{ padding: "24px" }}>
         
-        {/* PASO 1: Datos Personales con Contadores Dinámicos e Interactivos */}
+        {/* PASO 1: Datos Personales con Rodillos e Interactivos */}
         {step === 1 && (
           <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
@@ -258,80 +222,100 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
               </div>
             </div>
 
-            {/* CONTADOR INTERACTIVO 2: PESO (KILOS Y GRAMOS) */}
+            {/* RODILLO / DIAL INTERACTIVO RÁPIDO 2: PESO CORPORAL (KILOS & DECIMATION) */}
             <div style={{ background: "#F2F2F7", padding: "18px", borderRadius: "16px", textAlign: "center" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                <label className="form-label" style={{ margin: 0, color: "var(--text-secondary)" }}>⚖️ PESO CORPORAL</label>
-                <span className="badge badge-blue" style={{ fontSize: "0.85rem", fontWeight: 700 }}>
-                  Total: {totalWeightFormatted} kg
-                </span>
+              <label className="form-label" style={{ marginBottom: "8px", display: "block", color: "var(--text-secondary)" }}>⚖️ PESO CORPORAL (KG)</label>
+              
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "20px", marginBottom: "12px" }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => updateWeightKg(-0.5)}
+                  style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  <Minus size={20} color="var(--text-primary)" />
+                </button>
+
+                <div>
+                  <span style={{ fontSize: "2.5rem", fontWeight: 800, color: "var(--accent-blue)" }}>{answers.weightKg}</span>
+                  <span style={{ fontSize: "1rem", color: "var(--text-secondary)", marginLeft: "4px", fontWeight: 700 }}>kg</span>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => updateWeightKg(0.5)}
+                  style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  <Plus size={20} color="var(--text-primary)" />
+                </button>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                
-                {/* Control Kilos */}
-                <div style={{ background: "#FFFFFF", padding: "12px", borderRadius: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600 }}>KILOS</span>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "6px" }}>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => updateWeightKg(-1)}
-                      style={{ borderRadius: "50%", width: "32px", height: "32px", padding: 0 }}
-                    >
-                      <Minus size={16} />
-                    </button>
-                    <span style={{ fontSize: "1.4rem", fontWeight: 800 }}>{answers.weightKg} <small style={{ fontSize: "0.75rem" }}>kg</small></span>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => updateWeightKg(1)}
-                      style={{ borderRadius: "50%", width: "32px", height: "32px", padding: 0 }}
-                    >
-                      <Plus size={16} />
-                    </button>
-                  </div>
-                </div>
+              {/* Slider de Rodillo Rápido de Peso */}
+              <div style={{ position: "relative", padding: "8px 0" }}>
+                <input
+                  type="range"
+                  min="0"
+                  max="200"
+                  step="0.5"
+                  value={answers.weightKg}
+                  onChange={(e) => setAnswers({ ...answers, weightKg: Number(e.target.value) })}
+                  style={{
+                    width: "100%",
+                    accentColor: "var(--accent-blue)",
+                    height: "10px",
+                    borderRadius: "5px",
+                    cursor: "pointer"
+                  }}
+                />
 
-                {/* Control Gramos */}
-                <div style={{ background: "#FFFFFF", padding: "12px", borderRadius: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600 }}>GRAMOS</span>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "6px" }}>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => updateWeightGrams(-100)}
-                      style={{ borderRadius: "50%", width: "32px", height: "32px", padding: 0 }}
-                    >
-                      <Minus size={16} />
-                    </button>
-                    <span style={{ fontSize: "1.4rem", fontWeight: 800 }}>{answers.weightGrams} <small style={{ fontSize: "0.75rem" }}>g</small></span>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => updateWeightGrams(100)}
-                      style={{ borderRadius: "50%", width: "32px", height: "32px", padding: 0 }}
-                    >
-                      <Plus size={16} />
-                    </button>
-                  </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "0.72rem", color: "var(--text-secondary)" }}>
+                  <span>0 kg</span>
+                  <span>50 kg</span>
+                  <span>75 kg</span>
+                  <span>100 kg</span>
+                  <span>150 kg</span>
+                  <span>200 kg</span>
                 </div>
+              </div>
 
+              {/* Botones de Salto Rápido de Peso */}
+              <div style={{ display: "flex", justifyContent: "center", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
+                {[50, 60, 70, 80, 90, 100, 110].map((presetW) => (
+                  <button
+                    key={presetW}
+                    type="button"
+                    onClick={() => setAnswers({ ...answers, weightKg: presetW })}
+                    style={{
+                      border: "none",
+                      padding: "5px 12px",
+                      borderRadius: "14px",
+                      fontSize: "0.78rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      background: answers.weightKg === presetW ? "var(--accent-blue)" : "#E5E5EA",
+                      color: answers.weightKg === presetW ? "#FFF" : "var(--text-primary)"
+                    }}
+                  >
+                    {presetW} kg
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* RODILLO / DIAL INTERACTIVO 3: ALTURA EN CENTÍMETROS */}
+            {/* RODILLO / DIAL INTERACTIVO 3: ALTURA EN CENTÍMETROS CON BOTONES GRANDES (48px) */}
             <div style={{ background: "#F2F2F7", padding: "18px", borderRadius: "16px", textAlign: "center" }}>
               <label className="form-label" style={{ marginBottom: "8px", display: "block", color: "var(--text-secondary)" }}>📏 ALTURA (CENTÍMETROS)</label>
               
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "16px", marginBottom: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "20px", marginBottom: "12px" }}>
+                {/* BOTÓN MENOS AGRANDADO A 48px IGUAL AL DE LA EDAD */}
                 <button
                   type="button"
                   className="btn btn-ghost"
                   onClick={() => updateHeightCm(-1)}
-                  style={{ width: "42px", height: "42px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
-                  <Minus size={18} />
+                  <Minus size={20} color="var(--text-primary)" />
                 </button>
 
                 <div>
@@ -340,18 +324,19 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
                   <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>({(answers.heightCm / 100).toFixed(2)} m)</div>
                 </div>
 
+                {/* BOTÓN MÁS AGRANDADO A 48px IGUAL AL DE LA EDAD */}
                 <button
                   type="button"
                   className="btn btn-ghost"
                   onClick={() => updateHeightCm(1)}
-                  style={{ width: "42px", height: "42px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
-                  <Plus size={18} />
+                  <Plus size={20} color="var(--text-primary)" />
                 </button>
               </div>
 
-              {/* Slider de Rodillo / Regla Estilo iOS/Android Wheel */}
-              <div style={{ position: "relative", padding: "10px 0" }}>
+              {/* Slider de Rodillo de Altura */}
+              <div style={{ position: "relative", padding: "8px 0" }}>
                 <input
                   type="range"
                   min="0"
@@ -361,14 +346,13 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
                   style={{
                     width: "100%",
                     accentColor: "var(--accent-blue)",
-                    height: "8px",
-                    borderRadius: "4px",
+                    height: "10px",
+                    borderRadius: "5px",
                     cursor: "pointer"
                   }}
                 />
                 
-                {/* Visual Ticks de la Regla */}
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "0.7rem", color: "var(--text-secondary)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "0.72rem", color: "var(--text-secondary)" }}>
                   <span>0 cm</span>
                   <span>140 cm</span>
                   <span>170 cm</span>
@@ -376,6 +360,29 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
                   <span>220 cm</span>
                 </div>
               </div>
+
+              {/* Botones Rápidos de Altura */}
+              <div style={{ display: "flex", justifyContent: "center", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
+                {[155, 165, 170, 175, 180, 185, 190].map((presetH) => (
+                  <button
+                    key={presetH}
+                    type="button"
+                    onClick={() => setAnswers({ ...answers, heightCm: presetH })}
+                    style={{
+                      border: "none",
+                      padding: "5px 10px",
+                      borderRadius: "14px",
+                      fontSize: "0.75rem",
+                      cursor: "pointer",
+                      background: answers.heightCm === presetH ? "var(--accent-blue)" : "#E5E5EA",
+                      color: answers.heightCm === presetH ? "#FFF" : "var(--text-primary)"
+                    }}
+                  >
+                    {presetH} cm
+                  </button>
+                ))}
+              </div>
+
             </div>
 
           </div>
