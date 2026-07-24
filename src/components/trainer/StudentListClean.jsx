@@ -26,7 +26,7 @@ export const StudentListClean = ({ onSelectStudent, isCreateModalOpen, setIsCrea
   const trainerStudents = students.filter((s) => s.trainerId === currentUser?.id);
 
   const filteredStudents = trainerStudents.filter(
-    (s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.email.toLowerCase().includes(searchQuery.toLowerCase())
+    (s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || (s.email || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleNameChange = (e) => {
@@ -184,7 +184,7 @@ export const StudentListClean = ({ onSelectStudent, isCreateModalOpen, setIsCrea
         })}
       </div>
 
-      {/* Modal Crear Alumno */}
+      {/* Modal Crear Alumno con Segmented Control de Género Inmune a Deformaciones */}
       <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Crear Nuevo Alumno">
         <form onSubmit={handleCreateStudent}>
           <div className="form-group">
@@ -198,29 +198,57 @@ export const StudentListClean = ({ onSelectStudent, isCreateModalOpen, setIsCrea
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Género (Avatar Sin Cara)</label>
-            <div style={{ display: "flex", gap: "10px" }}>
+          <div className="form-group" style={{ marginBottom: "16px" }}>
+            <label className="form-label">Género del Alumno</label>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "8px",
+              background: "#F2F2F7",
+              padding: "4px",
+              borderRadius: "12px"
+            }}>
               <button
                 type="button"
-                className={`btn ${newStudentForm.gender === "male" ? "btn-primary" : "btn-secondary"}`}
-                style={{ flex: 1 }}
                 onClick={() => setNewStudentForm({ ...newStudentForm, gender: "male" })}
+                style={{
+                  border: "none",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.16s ease",
+                  background: newStudentForm.gender === "male" ? "#007AFF" : "transparent",
+                  color: newStudentForm.gender === "male" ? "#FFFFFF" : "var(--text-secondary)",
+                  boxShadow: newStudentForm.gender === "male" ? "0 2px 8px rgba(0,122,255,0.3)" : "none"
+                }}
               >
-                👨 Masculino (Silueta Azul)
+                👨 Masculino
               </button>
+
               <button
                 type="button"
-                className={`btn ${newStudentForm.gender === "female" ? "btn-lime" : "btn-secondary"}`}
-                style={{ flex: 1, background: newStudentForm.gender === "female" ? "#FF2D55" : "" }}
                 onClick={() => setNewStudentForm({ ...newStudentForm, gender: "female" })}
+                style={{
+                  border: "none",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.16s ease",
+                  background: newStudentForm.gender === "female" ? "#FF2D55" : "transparent",
+                  color: newStudentForm.gender === "female" ? "#FFFFFF" : "var(--text-secondary)",
+                  boxShadow: newStudentForm.gender === "female" ? "0 2px 8px rgba(255,45,85,0.3)" : "none"
+                }}
               >
-                👩 Femenino (Silueta Rosa)
+                👩 Femenino
               </button>
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
             <div className="form-group">
               <label className="form-label">Usuario de Login</label>
               <input

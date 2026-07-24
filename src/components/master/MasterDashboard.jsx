@@ -425,22 +425,50 @@ export const MasterDashboard = () => {
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: "16px" }}>
             <label className="form-label">Género del Profesor</label>
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "8px",
+              background: "#F2F2F7",
+              padding: "4px",
+              borderRadius: "12px"
+            }}>
               <button
                 type="button"
-                className={`btn ${trainerForm.gender === "male" ? "btn-primary" : "btn-secondary"}`}
-                style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
                 onClick={() => setTrainerForm({ ...trainerForm, gender: "male" })}
+                style={{
+                  border: "none",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.16s ease",
+                  background: trainerForm.gender === "male" ? "#007AFF" : "transparent",
+                  color: trainerForm.gender === "male" ? "#FFFFFF" : "var(--text-secondary)",
+                  boxShadow: trainerForm.gender === "male" ? "0 2px 8px rgba(0,122,255,0.3)" : "none"
+                }}
               >
                 👨 Masculino
               </button>
+
               <button
                 type="button"
-                className={`btn ${trainerForm.gender === "female" ? "btn-lime" : "btn-secondary"}`}
-                style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", whiteSpace: "nowrap", background: trainerForm.gender === "female" ? "#FF2D55" : "" }}
                 onClick={() => setTrainerForm({ ...trainerForm, gender: "female" })}
+                style={{
+                  border: "none",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.16s ease",
+                  background: trainerForm.gender === "female" ? "#FF2D55" : "transparent",
+                  color: trainerForm.gender === "female" ? "#FFFFFF" : "var(--text-secondary)",
+                  boxShadow: trainerForm.gender === "female" ? "0 2px 8px rgba(255,45,85,0.3)" : "none"
+                }}
               >
                 👩 Femenino
               </button>
@@ -513,22 +541,50 @@ export const MasterDashboard = () => {
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: "16px" }}>
             <label className="form-label">Género del Alumno</label>
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "8px",
+              background: "#F2F2F7",
+              padding: "4px",
+              borderRadius: "12px"
+            }}>
               <button
                 type="button"
-                className={`btn ${studentForm.gender === "male" ? "btn-primary" : "btn-secondary"}`}
-                style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
                 onClick={() => setStudentForm({ ...studentForm, gender: "male" })}
+                style={{
+                  border: "none",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.16s ease",
+                  background: studentForm.gender === "male" ? "#007AFF" : "transparent",
+                  color: studentForm.gender === "male" ? "#FFFFFF" : "var(--text-secondary)",
+                  boxShadow: studentForm.gender === "male" ? "0 2px 8px rgba(0,122,255,0.3)" : "none"
+                }}
               >
                 👨 Masculino
               </button>
+
               <button
                 type="button"
-                className={`btn ${studentForm.gender === "female" ? "btn-lime" : "btn-secondary"}`}
-                style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", whiteSpace: "nowrap", background: studentForm.gender === "female" ? "#FF2D55" : "" }}
                 onClick={() => setStudentForm({ ...studentForm, gender: "female" })}
+                style={{
+                  border: "none",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.16s ease",
+                  background: studentForm.gender === "female" ? "#FF2D55" : "transparent",
+                  color: studentForm.gender === "female" ? "#FFFFFF" : "var(--text-secondary)",
+                  boxShadow: studentForm.gender === "female" ? "0 2px 8px rgba(255,45,85,0.3)" : "none"
+                }}
               >
                 👩 Femenino
               </button>
