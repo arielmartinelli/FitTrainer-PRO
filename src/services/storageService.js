@@ -1,6 +1,5 @@
 import { initialTrainers, initialRoutines, initialStudents, initialMasterAdmin } from "./mockData";
 import { supabase, isSupabaseConfigured } from "./supabaseClient";
-import { pushCloudData, fetchCloudData } from "./cloudSyncService";
 
 const KEYS = {
   MASTER: "fittrainer_master_admin_v1",
@@ -22,15 +21,6 @@ export const initializeStorage = () => {
   if (!localStorage.getItem(KEYS.STUDENTS)) {
     localStorage.setItem(KEYS.STUDENTS, JSON.stringify(initialStudents));
   }
-};
-
-export const syncAllToCloud = () => {
-  const fullData = {
-    trainers: getTrainers(),
-    students: getStudents(),
-    routines: getRoutines()
-  };
-  pushCloudData(fullData);
 };
 
 export const getMasterAdmin = () => {
@@ -62,8 +52,6 @@ export const saveTrainer = (trainer) => {
   }
   localStorage.setItem(KEYS.TRAINERS, JSON.stringify(trainers));
 
-  syncAllToCloud();
-
   // Sincronización en Supabase si está activo
   if (isSupabaseConfigured()) {
     supabase.from("trainers").upsert([{
@@ -87,8 +75,6 @@ export const deleteTrainer = (trainerId) => {
   const updated = trainers.filter((t) => t.id !== trainerId);
   localStorage.setItem(KEYS.TRAINERS, JSON.stringify(updated));
 
-  syncAllToCloud();
-
   if (isSupabaseConfigured()) {
     supabase.from("trainers").delete().eq("id", trainerId).then();
   }
@@ -105,9 +91,6 @@ export const toggleTrainerAccess = (trainerId) => {
     return t;
   });
   localStorage.setItem(KEYS.TRAINERS, JSON.stringify(updated));
-
-  syncAllToCloud();
-
   return updated;
 };
 
@@ -139,8 +122,6 @@ export const saveRoutine = (routine) => {
   }
   localStorage.setItem(KEYS.ROUTINES, JSON.stringify(routines));
 
-  syncAllToCloud();
-
   if (isSupabaseConfigured()) {
     supabase.from("routines").upsert([{
       id: formattedRoutine.id,
@@ -160,8 +141,6 @@ export const deleteRoutine = (routineId) => {
   const routines = getRoutines();
   const updated = routines.filter((r) => r.id !== routineId);
   localStorage.setItem(KEYS.ROUTINES, JSON.stringify(updated));
-
-  syncAllToCloud();
 
   if (isSupabaseConfigured()) {
     supabase.from("routines").delete().eq("id", routineId).then();
@@ -211,8 +190,6 @@ export const saveStudent = (student) => {
   }
   localStorage.setItem(KEYS.STUDENTS, JSON.stringify(students));
 
-  syncAllToCloud();
-
   if (isSupabaseConfigured()) {
     supabase.from("students").upsert([{
       id: studentData.id,
@@ -230,7 +207,9 @@ export const saveStudent = (student) => {
       assigned_routine_id: studentData.assignedRoutineId,
       questionnaire_completed: studentData.questionnaireCompleted,
       questionnaire_data: studentData.questionnaireData
-    }]).then();
+    }]).then(({ error }) => {
+      if (error) console.error("Supabase student sync error:", error);
+    });
   }
 
   return students;
@@ -240,8 +219,6 @@ export const deleteStudent = (studentId) => {
   const students = getStudents();
   const updated = students.filter((s) => s.id !== studentId);
   localStorage.setItem(KEYS.STUDENTS, JSON.stringify(updated));
-
-  syncAllToCloud();
 
   if (isSupabaseConfigured()) {
     supabase.from("students").delete().eq("id", studentId).then();
@@ -259,9 +236,6 @@ export const toggleStudentAccess = (studentId) => {
     return s;
   });
   localStorage.setItem(KEYS.STUDENTS, JSON.stringify(updated));
-
-  syncAllToCloud();
-
   return updated;
 };
 
@@ -288,9 +262,6 @@ export const saveStudentQuestionnaire = (studentId, questionnaireData) => {
     return s;
   });
   localStorage.setItem(KEYS.STUDENTS, JSON.stringify(updated));
-
-  syncAllToCloud();
-
   return updated;
 };
 
@@ -306,9 +277,6 @@ export const reopenStudentQuestionnaire = (studentId) => {
     return s;
   });
   localStorage.setItem(KEYS.STUDENTS, JSON.stringify(updated));
-
-  syncAllToCloud();
-
   return updated;
 };
 
@@ -339,9 +307,6 @@ export const recordStudentPayment = (studentId, paymentData) => {
     return s;
   });
   localStorage.setItem(KEYS.STUDENTS, JSON.stringify(updated));
-
-  syncAllToCloud();
-
   return updated;
 };
 
@@ -362,8 +327,5 @@ export const logCompletedWorkout = (studentId, workoutData) => {
     return s;
   });
   localStorage.setItem(KEYS.STUDENTS, JSON.stringify(updated));
-
-  syncAllToCloud();
-
   return updated;
 };

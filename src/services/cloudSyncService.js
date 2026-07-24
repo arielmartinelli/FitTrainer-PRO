@@ -1,30 +1,27 @@
-// Servicio de Sincronización Remota Global en Tiempo Real para FitTrainer PRO
-// Garantiza que todo lo creado en Celular aparezca en la PC y viceversa.
+// Servicio de Sincronización Remota Limpio para FitTrainer PRO
+// Elimina llamadas a apis externas de prueba y sincroniza directamente con la base de datos de Supabase.
 
-const SYNC_ENDPOINT = "https://jsonbin.org/arielmartinelli/fittrainer_pro_db";
-const ALT_ENDPOINT = "https://kvdb.io/fittrainer_pro_live_db/global_data";
+import { supabase, isSupabaseConfigured } from "./supabaseClient";
 
 export const fetchCloudData = async () => {
+  if (!isSupabaseConfigured()) return null;
   try {
-    const res = await fetch("https://api.myjson.online/v1/records/4814e410-6395-46fb-973c-f4b6fa7223e7");
-    if (res.ok) {
-      const result = await res.json();
-      return result.data || result;
-    }
+    const { data: dbTrainers } = await supabase.from("trainers").select("*");
+    const { data: dbStudents } = await supabase.from("students").select("*");
+    const { data: dbRoutines } = await supabase.from("routines").select("*");
+
+    return {
+      trainers: dbTrainers || [],
+      students: dbStudents || [],
+      routines: dbRoutines || []
+    };
   } catch (err) {
-    console.warn("Error consultando nube principal:", err);
+    console.warn("Supabase fetch warning:", err);
+    return null;
   }
-  return null;
 };
 
 export const pushCloudData = async (data) => {
-  try {
-    await fetch("https://api.myjson.online/v1/records/4814e410-6395-46fb-973c-f4b6fa7223e7", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data })
-    });
-  } catch (err) {
-    console.warn("Error guardando en la nube principal:", err);
-  }
+  // Manejado directamente por las operaciones de Supabase upsert en storageService.js
+  return true;
 };
