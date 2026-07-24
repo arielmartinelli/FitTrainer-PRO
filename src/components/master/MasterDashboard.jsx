@@ -235,7 +235,7 @@ export const MasterDashboard = () => {
           className={`btn ${activeTab === "trainers" ? "btn-primary" : "btn-ghost"}`}
           onClick={() => setActiveTab("trainers")}
         >
-          👨‍🏫 Profesores ({trainers.length})
+          💪 Profesores ({trainers.length})
         </button>
         <button
           className={`btn ${activeTab === "students" ? "btn-primary" : "btn-ghost"}`}
@@ -289,7 +289,7 @@ export const MasterDashboard = () => {
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{t.name}</h3>
-                          <span>{t.gender === "female" ? "👩‍🏫" : "👨‍🏫"}</span>
+                          <span>💪</span>
                         </div>
                         <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>{t.brandName || "Profesor"}</span>
                       </div>
@@ -372,7 +372,7 @@ export const MasterDashboard = () => {
                     </div>
 
                     <div style={{ background: "#F2F2F7", padding: "10px", borderRadius: "8px", fontSize: "0.8rem", display: "flex", flexDirection: "column", gap: "4px", marginBottom: "14px" }}>
-                      <div>👨‍🏫 Profesor Asignado: <strong style={{ color: "var(--accent-blue)" }}>{assignedTrainer?.name || "Sin asignar"}</strong></div>
+                      <div>💪 Profesor Asignado: <strong style={{ color: "var(--accent-blue)" }}>{assignedTrainer?.name || "Sin asignar"}</strong></div>
                       <div>🔑 Usuario Login: <strong style={{ color: "var(--accent-blue)" }}>{s.username}</strong></div>
                       <div>🔐 Contraseña: <strong>{s.password}</strong></div>
                     </div>
@@ -425,7 +425,6 @@ export const MasterDashboard = () => {
             />
           </div>
 
-          {/* BOTONES LIMPIOS COMPACTOS DE GÉNERO */}
           <div className="form-group">
             <label className="form-label">Género del Profesor</label>
             <div style={{ display: "flex", gap: "8px" }}>
@@ -435,7 +434,7 @@ export const MasterDashboard = () => {
                 style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
                 onClick={() => setTrainerForm({ ...trainerForm, gender: "male" })}
               >
-                👨‍🏫 Masculino
+                👨 Masculino
               </button>
               <button
                 type="button"
@@ -443,7 +442,7 @@ export const MasterDashboard = () => {
                 style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", whiteSpace: "nowrap", background: trainerForm.gender === "female" ? "#FF2D55" : "" }}
                 onClick={() => setTrainerForm({ ...trainerForm, gender: "female" })}
               >
-                👩‍🏫 Femenino
+                👩 Femenino
               </button>
             </div>
           </div>
@@ -514,7 +513,6 @@ export const MasterDashboard = () => {
             />
           </div>
 
-          {/* BOTONES LIMPIOS COMPACTOS DE GÉNERO */}
           <div className="form-group">
             <label className="form-label">Género del Alumno</label>
             <div style={{ display: "flex", gap: "8px" }}>
