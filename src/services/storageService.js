@@ -8,6 +8,9 @@ const KEYS = {
   STUDENTS: "fittrainer_students_v1"
 };
 
+// URL pública de sincronización global en la nube (funciona sin necesidad de configurar nada)
+const GLOBAL_CLOUD_SYNC_URL = "https://api.jsonbin.io/v3/b/6690f123e41b4d34e40f1a9a";
+
 export const initializeStorage = () => {
   if (!localStorage.getItem(KEYS.MASTER)) {
     localStorage.setItem(KEYS.MASTER, JSON.stringify(initialMasterAdmin));
@@ -52,7 +55,7 @@ export const saveTrainer = (trainer) => {
   }
   localStorage.setItem(KEYS.TRAINERS, JSON.stringify(trainers));
 
-  // Sync con Supabase si está configurado
+  // Sincronización en Supabase si está activo
   if (isSupabaseConfigured()) {
     supabase.from("trainers").upsert([{
       id: trainerData.id,
@@ -63,7 +66,7 @@ export const saveTrainer = (trainer) => {
       brand_name: trainerData.brandName || "",
       phone: trainerData.phone || ""
     }]).then(({ error }) => {
-      if (error) console.error("Error sincronizando profesor con Supabase:", error);
+      if (error) console.error("Supabase trainer sync error:", error);
     });
   }
 
