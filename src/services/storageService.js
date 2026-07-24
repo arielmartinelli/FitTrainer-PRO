@@ -50,6 +50,13 @@ export const saveTrainer = (trainer) => {
   return trainers;
 };
 
+export const deleteTrainer = (trainerId) => {
+  const trainers = getTrainers();
+  const updated = trainers.filter((t) => t.id !== trainerId);
+  localStorage.setItem(KEYS.TRAINERS, JSON.stringify(updated));
+  return updated;
+};
+
 export const toggleTrainerAccess = (trainerId) => {
   const trainers = getTrainers();
   const updated = trainers.map((t) => {
@@ -138,6 +145,13 @@ export const saveStudent = (student) => {
   }
   localStorage.setItem(KEYS.STUDENTS, JSON.stringify(students));
   return students;
+};
+
+export const deleteStudent = (studentId) => {
+  const students = getStudents();
+  const updated = students.filter((s) => s.id !== studentId);
+  localStorage.setItem(KEYS.STUDENTS, JSON.stringify(updated));
+  return updated;
 };
 
 export const toggleStudentAccess = (studentId) => {

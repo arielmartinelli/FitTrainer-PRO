@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import {
   saveTrainer,
+  deleteTrainer,
   saveStudent,
+  deleteStudent,
   toggleTrainerAccess,
   toggleStudentAccess
 } from "../../services/storageService";
@@ -18,7 +20,9 @@ import {
   Key,
   Calendar,
   CheckCircle2,
-  DollarSign
+  DollarSign,
+  Edit,
+  Trash2
 } from "lucide-react";
 
 export const MasterDashboard = () => {
@@ -29,9 +33,12 @@ export const MasterDashboard = () => {
   // Modal States
   const [showTrainerModal, setShowTrainerModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
+  const [editingTrainer, setEditingTrainer] = useState(null);
+  const [editingStudent, setEditingStudent] = useState(null);
 
   // Forms
-  const [newTrainerForm, setNewTrainerForm] = useState({
+  const [trainerForm, setTrainerForm] = useState({
+    id: "",
     name: "",
     email: "",
     username: "",
@@ -42,7 +49,8 @@ export const MasterDashboard = () => {
     alias: ""
   });
 
-  const [newStudentForm, setNewStudentForm] = useState({
+  const [studentForm, setStudentForm] = useState({
+    id: "",
     name: "",
     gender: "male",
     phone: "",
@@ -55,30 +63,11 @@ export const MasterDashboard = () => {
     password: ""
   });
 
-  // Toggle Accesos
-  const handleToggleTrainer = (trainerId) => {
-    toggleTrainerAccess(trainerId);
-    refreshData();
-  };
-
-  const handleToggleStudent = (studentId) => {
-    toggleStudentAccess(studentId);
-    refreshData();
-  };
-
-  // Crear Profesor
-  const handleCreateTrainerSubmit = (e) => {
-    e.preventDefault();
-    if (!newTrainerForm.name || !newTrainerForm.email || !newTrainerForm.password) return;
-
-    saveTrainer({
-      ...newTrainerForm,
-      username: newTrainerForm.username || newTrainerForm.email.split("@")[0]
-    });
-
-    refreshData();
-    setShowTrainerModal(false);
-    setNewTrainerForm({
+  // Abrir Modal Crear Profesor
+  const handleOpenNewTrainer = () => {
+    setEditingTrainer(null);
+    setTrainerForm({
+      id: "",
       name: "",
       email: "",
       username: "",
@@ -88,21 +77,118 @@ export const MasterDashboard = () => {
       phone: "",
       alias: ""
     });
+    setShowTrainerModal(true);
   };
 
-  // Crear Alumno y Asignar a Profesor (con selección de Género para Avatar Sin Cara)
-  const handleCreateStudentSubmit = (e) => {
+  // Abrir Modal Editar Profesor
+  const handleOpenEditTrainer = (trainer) => {
+    setEditingTrainer(trainer);
+    setTrainerForm({
+      id: trainer.id,
+      name: trainer.name,
+      email: trainer.email,
+      username: trainer.username || trainer.email?.split("@")[0],
+      password: trainer.password,
+      brandName: trainer.brandName || "",
+      specialty: trainer.specialty || "",
+      phone: trainer.phone || "",
+      alias: trainer.alias || ""
+    });
+    setShowTrainerModal(true);
+  };
+
+  // Abrir Modal Crear Alumno
+  const handleOpenNewStudent = () => {
+    setEditingStudent(null);
+    setStudentForm({
+      id: "",
+      name: "",
+      gender: "male",
+      phone: "",
+      trainerId: trainers[0]?.id || "",
+      joinDate: new Date().toISOString().split("T")[0],
+      goal: "Hipertrofia Muscular",
+      planName: "Plan Mensual",
+      planPrice: 28000,
+      username: "",
+      password: ""
+    });
+    setShowStudentModal(true);
+  };
+
+  // Abrir Modal Editar Alumno
+  const handleOpenEditStudent = (student) => {
+    setEditingStudent(student);
+    setStudentForm({
+      id: student.id,
+      name: student.name,
+      gender: student.gender || "male",
+      phone: student.phone || "",
+      trainerId: student.trainerId || trainers[0]?.id || "",
+      joinDate: student.joinDate || new Date().toISOString().split("T")[0],
+      goal: student.goal || "Hipertrofia Muscular",
+      planName: student.planName || "Plan Mensual",
+      planPrice: student.planPrice || 28000,
+      username: student.username || "",
+      password: student.password || ""
+    });
+    setShowStudentModal(true);
+  };
+
+  // Guardar Profesor (Crear / Modificar)
+  const handleSaveTrainerSubmit = (e) => {
     e.preventDefault();
-    if (!newStudentForm.name || !newStudentForm.username) return;
+    if (!trainerForm.name || !trainerForm.email || !trainerForm.password) return;
+
+    saveTrainer({
+      ...trainerForm,
+      username: trainerForm.username || trainerForm.email.split("@")[0]
+    });
+
+    refreshData();
+    setShowTrainerModal(false);
+  };
+
+  // Eliminar Profesor
+  const handleDeleteTrainer = (trainerId, trainerName) => {
+    if (confirm(`¿Estás seguro de eliminar permanentemente al profesor "${trainerName}"?`)) {
+      deleteTrainer(trainerId);
+      refreshData();
+    }
+  };
+
+  // Guardar Alumno (Crear / Modificar)
+  const handleSaveStudentSubmit = (e) => {
+    e.preventDefault();
+    if (!studentForm.name || !studentForm.username) return;
 
     saveStudent({
-      ...newStudentForm,
-      username: newStudentForm.username,
-      password: newStudentForm.password || "alumno123"
+      ...studentForm,
+      username: studentForm.username,
+      password: studentForm.password || "alumno123"
     });
 
     refreshData();
     setShowStudentModal(false);
+  };
+
+  // Eliminar Alumno
+  const handleDeleteStudent = (studentId, studentName) => {
+    if (confirm(`¿Estás seguro de eliminar permanentemente al alumno "${studentName}"?`)) {
+      deleteStudent(studentId);
+      refreshData();
+    }
+  };
+
+  // Toggle Accesos
+  const handleToggleTrainer = (trainerId) => {
+    toggleTrainerAccess(trainerId);
+    refreshData();
+  };
+
+  const handleToggleStudent = (studentId) => {
+    toggleStudentAccess(studentId);
+    refreshData();
   };
 
   const filteredTrainers = trainers.filter(
@@ -125,15 +211,15 @@ export const MasterDashboard = () => {
             </span>
             <h1 style={{ fontSize: "1.8rem", color: "#FFF", margin: "4px 0" }}>Gestión Global de la Plataforma</h1>
             <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.9rem" }}>
-              Crea profesores y alumnos con su usuario de acceso y asigna avatares por género.
+              Crea, edita o elimina profesores y alumnos, asigna relaciones y administra accesos.
             </p>
           </div>
 
           <div style={{ display: "flex", gap: "10px" }}>
-            <button className="btn btn-lime" onClick={() => setShowTrainerModal(true)}>
+            <button className="btn btn-lime" onClick={handleOpenNewTrainer}>
               <Plus size={18} /> Crear Profesor
             </button>
-            <button className="btn btn-secondary" onClick={() => setShowStudentModal(true)}>
+            <button className="btn btn-secondary" onClick={handleOpenNewStudent}>
               <Plus size={18} /> Crear Alumno
             </button>
           </div>
@@ -169,131 +255,169 @@ export const MasterDashboard = () => {
         />
       </div>
 
-      {/* TAB 1: GESTIÓN DE PROFESORES */}
+      {/* TAB 1: GESTIÓN DE PROFESORES (CON BOTONES DE EDITAR Y ELIMINAR) */}
       {activeTab === "trainers" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
-          {filteredTrainers.map((t) => {
-            const countStudents = students.filter((s) => s.trainerId === t.id).length;
-            const isRevoked = t.status === "revoked";
+          {filteredTrainers.length === 0 ? (
+            <div className="glass-panel" style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)", gridColumn: "1 / -1" }}>
+              No hay profesores registrados. Presiona "Crear Profesor" para añadir el primero.
+            </div>
+          ) : (
+            filteredTrainers.map((t) => {
+              const countStudents = students.filter((s) => s.trainerId === t.id).length;
+              const isRevoked = t.status === "revoked";
 
-            return (
-              <div
-                key={t.id}
-                className="glass-panel"
-                style={{
-                  padding: "20px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  opacity: isRevoked ? 0.65 : 1,
-                  borderLeft: isRevoked ? "4px solid var(--accent-red)" : "4px solid var(--accent-blue)"
-                }}
-              >
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#EBF5FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: "1.3rem" }}>👨‍🏫</span>
+              return (
+                <div
+                  key={t.id}
+                  className="glass-panel"
+                  style={{
+                    padding: "20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    opacity: isRevoked ? 0.65 : 1,
+                    borderLeft: isRevoked ? "4px solid var(--accent-red)" : "4px solid var(--accent-blue)"
+                  }}
+                >
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                      <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#EBF5FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ fontSize: "1.3rem" }}>👨‍🏫</span>
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{t.name}</h3>
+                        <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>{t.brandName || "Profesor"}</span>
+                      </div>
                     </div>
-                    <div>
-                      <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{t.name}</h3>
-                      <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>{t.brandName || "Profesor"}</span>
+
+                    <div style={{ background: "#F2F2F7", padding: "10px", borderRadius: "8px", fontSize: "0.8rem", display: "flex", flexDirection: "column", gap: "4px", marginBottom: "14px" }}>
+                      <div>📧 Email: <strong>{t.email}</strong></div>
+                      <div>🔑 Clave: <strong>{t.password}</strong></div>
+                      <div>👥 Alumnos asignados: <strong style={{ color: "var(--accent-blue)" }}>{countStudents}</strong></div>
                     </div>
                   </div>
 
-                  <div style={{ background: "#F2F2F7", padding: "10px", borderRadius: "8px", fontSize: "0.8rem", display: "flex", flexDirection: "column", gap: "4px", marginBottom: "14px" }}>
-                    <div>📧 Email: <strong>{t.email}</strong></div>
-                    <div>🔑 Clave: <strong>{t.password}</strong></div>
-                    <div>👥 Alumnos asignados: <strong style={{ color: "var(--accent-blue)" }}>{countStudents}</strong></div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span className={`badge ${isRevoked ? "badge-danger" : "badge-success"}`}>
+                        {isRevoked ? "🔴 Acceso Revocado" : "🟢 Acceso Habilitado"}
+                      </span>
+
+                      <button
+                        className={`btn btn-sm ${isRevoked ? "btn-lime" : "btn-secondary"}`}
+                        onClick={() => handleToggleTrainer(t.id)}
+                      >
+                        {isRevoked ? <UserCheck size={14} /> : <UserX size={14} />}
+                        {isRevoked ? "Habilitar" : "Suspender"}
+                      </button>
+                    </div>
+
+                    {/* BOTONES DOBLES EDITAR Y ELIMINAR */}
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => handleOpenEditTrainer(t)}>
+                        <Edit size={14} /> Editar
+                      </button>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteTrainer(t.id, t.name)} title="Eliminar Profesor">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>
-                  <span className={`badge ${isRevoked ? "badge-danger" : "badge-success"}`}>
-                    {isRevoked ? "🔴 Acceso Revocado" : "🟢 Acceso Habilitado"}
-                  </span>
-
-                  <button
-                    className={`btn btn-sm ${isRevoked ? "btn-lime" : "btn-danger"}`}
-                    onClick={() => handleToggleTrainer(t.id)}
-                  >
-                    {isRevoked ? <UserCheck size={14} /> : <UserX size={14} />}
-                    {isRevoked ? "Habilitar Acceso" : "Quitar Acceso"}
-                  </button>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       )}
 
-      {/* TAB 2: GESTIÓN DE ALUMNOS (CON AVATAR POR GÉNERO Y ACCESO POR USUARIO) */}
+      {/* TAB 2: GESTIÓN DE ALUMNOS (CON BOTONES DE EDITAR Y ELIMINAR) */}
       {activeTab === "students" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
-          {filteredStudents.map((s) => {
-            const assignedTrainer = trainers.find((t) => t.id === s.trainerId);
-            const isRevoked = s.status === "revoked";
+          {filteredStudents.length === 0 ? (
+            <div className="glass-panel" style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)", gridColumn: "1 / -1" }}>
+              No hay alumnos registrados. Presiona "Crear Alumno" para añadir el primero.
+            </div>
+          ) : (
+            filteredStudents.map((s) => {
+              const assignedTrainer = trainers.find((t) => t.id === s.trainerId);
+              const isRevoked = s.status === "revoked";
 
-            return (
-              <div
-                key={s.id}
-                className="glass-panel"
-                style={{
-                  padding: "20px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  opacity: isRevoked ? 0.65 : 1,
-                  borderLeft: isRevoked ? "4px solid var(--accent-red)" : "4px solid var(--accent-green)"
-                }}
-              >
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                    <StudentAvatar gender={s.gender} name={s.name} size={48} />
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{s.name}</h3>
-                        <span>{s.gender === "female" ? "👩" : "👨"}</span>
+              return (
+                <div
+                  key={s.id}
+                  className="glass-panel"
+                  style={{
+                    padding: "20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    opacity: isRevoked ? 0.65 : 1,
+                    borderLeft: isRevoked ? "4px solid var(--accent-red)" : "4px solid var(--accent-green)"
+                  }}
+                >
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                      <StudentAvatar gender={s.gender} name={s.name} size={48} />
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{s.name}</h3>
+                          <span>{s.gender === "female" ? "👩" : "👨"}</span>
+                        </div>
+                        <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>{s.goal}</span>
                       </div>
-                      <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>{s.goal}</span>
+                    </div>
+
+                    <div style={{ background: "#F2F2F7", padding: "10px", borderRadius: "8px", fontSize: "0.8rem", display: "flex", flexDirection: "column", gap: "4px", marginBottom: "14px" }}>
+                      <div>👨‍🏫 Profesor Asignado: <strong style={{ color: "var(--accent-blue)" }}>{assignedTrainer?.name || "Sin asignar"}</strong></div>
+                      <div>🔑 Usuario Login: <strong style={{ color: "var(--accent-blue)" }}>{s.username}</strong></div>
+                      <div>🔐 Contraseña: <strong>{s.password}</strong></div>
                     </div>
                   </div>
 
-                  <div style={{ background: "#F2F2F7", padding: "10px", borderRadius: "8px", fontSize: "0.8rem", display: "flex", flexDirection: "column", gap: "4px", marginBottom: "14px" }}>
-                    <div>👨‍🏫 Profesor Asignado: <strong style={{ color: "var(--accent-blue)" }}>{assignedTrainer?.name || "Sin asignar"}</strong></div>
-                    <div>🔑 Usuario Login: <strong style={{ color: "var(--accent-blue)" }}>{s.username}</strong></div>
-                    <div>🔐 Contraseña: <strong>{s.password}</strong></div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span className={`badge ${isRevoked ? "badge-danger" : "badge-success"}`}>
+                        {isRevoked ? "🔴 Acceso Revocado" : "🟢 Acceso Habilitado"}
+                      </span>
+
+                      <button
+                        className={`btn btn-sm ${isRevoked ? "btn-lime" : "btn-secondary"}`}
+                        onClick={() => handleToggleStudent(s.id)}
+                      >
+                        {isRevoked ? <UserCheck size={14} /> : <UserX size={14} />}
+                        {isRevoked ? "Habilitar" : "Suspender"}
+                      </button>
+                    </div>
+
+                    {/* BOTONES DOBLES EDITAR Y ELIMINAR */}
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => handleOpenEditStudent(s)}>
+                        <Edit size={14} /> Editar
+                      </button>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteStudent(s.id, s.name)} title="Eliminar Alumno">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>
-                  <span className={`badge ${isRevoked ? "badge-danger" : "badge-success"}`}>
-                    {isRevoked ? "🔴 Acceso Revocado" : "🟢 Acceso Habilitado"}
-                  </span>
-
-                  <button
-                    className={`btn btn-sm ${isRevoked ? "btn-lime" : "btn-danger"}`}
-                    onClick={() => handleToggleStudent(s.id)}
-                  >
-                    {isRevoked ? <UserCheck size={14} /> : <UserX size={14} />}
-                    {isRevoked ? "Habilitar Acceso" : "Quitar Acceso"}
-                  </button>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       )}
 
-      {/* Modal Crear Profesor */}
-      <Modal isOpen={showTrainerModal} onClose={() => setShowTrainerModal(false)} title="Crear Nuevo Perfil de Profesor">
-        <form onSubmit={handleCreateTrainerSubmit}>
+      {/* Modal Crear / Editar Profesor */}
+      <Modal isOpen={showTrainerModal} onClose={() => setShowTrainerModal(false)} title={editingTrainer ? `Editar Profesor - ${editingTrainer.name}` : "Crear Nuevo Perfil de Profesor"}>
+        <form onSubmit={handleSaveTrainerSubmit}>
           <div className="form-group">
             <label className="form-label">Nombre del Profesor</label>
             <input
               type="text"
               className="form-input"
-              value={newTrainerForm.name}
-              onChange={(e) => setNewTrainerForm({ ...newTrainerForm, name: e.target.value })}
+              value={trainerForm.name}
+              onChange={(e) => setTrainerForm({ ...trainerForm, name: e.target.value })}
               placeholder="Ej: Coach Esteban Pérez"
               required
             />
@@ -305,8 +429,8 @@ export const MasterDashboard = () => {
               <input
                 type="email"
                 className="form-input"
-                value={newTrainerForm.email}
-                onChange={(e) => setNewTrainerForm({ ...newTrainerForm, email: e.target.value })}
+                value={trainerForm.email}
+                onChange={(e) => setTrainerForm({ ...trainerForm, email: e.target.value })}
                 required
               />
             </div>
@@ -315,38 +439,49 @@ export const MasterDashboard = () => {
               <input
                 type="text"
                 className="form-input"
-                value={newTrainerForm.password}
-                onChange={(e) => setNewTrainerForm({ ...newTrainerForm, password: e.target.value })}
+                value={trainerForm.password}
+                onChange={(e) => setTrainerForm({ ...trainerForm, password: e.target.value })}
                 placeholder="esteban123"
                 required
               />
             </div>
           </div>
 
+          <div className="form-group">
+            <label className="form-label">Nombre de Marca / Estudio (Opcional)</label>
+            <input
+              type="text"
+              className="form-input"
+              value={trainerForm.brandName}
+              onChange={(e) => setTrainerForm({ ...trainerForm, brandName: e.target.value })}
+              placeholder="Ej: Esteban Fitness Studio"
+            />
+          </div>
+
           <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
             <button type="button" className="btn btn-ghost" onClick={() => setShowTrainerModal(false)}>Cancelar</button>
-            <button type="submit" className="btn btn-lime">Crear Profesor</button>
+            <button type="submit" className="btn btn-lime">{editingTrainer ? "Guardar Cambios" : "Crear Profesor"}</button>
           </div>
         </form>
       </Modal>
 
-      {/* Modal Crear Alumno por Admin (Con Selección de Género y Usuario de Acceso) */}
-      <Modal isOpen={showStudentModal} onClose={() => setShowStudentModal(false)} title="Crear Alumno (Admin)">
-        <form onSubmit={handleCreateStudentSubmit}>
+      {/* Modal Crear / Editar Alumno */}
+      <Modal isOpen={showStudentModal} onClose={() => setShowStudentModal(false)} title={editingStudent ? `Editar Alumno - ${editingStudent.name}` : "Crear Nuevo Alumno"}>
+        <form onSubmit={handleSaveStudentSubmit}>
           <div className="form-group">
             <label className="form-label">Nombre Completo del Alumno</label>
             <input
               type="text"
               className="form-input"
-              value={newStudentForm.name}
+              value={studentForm.name}
               onChange={(e) => {
                 const val = e.target.value;
                 const clean = val.toLowerCase().replace(/[^a-z0-9]/g, "");
-                setNewStudentForm({
-                  ...newStudentForm,
+                setStudentForm({
+                  ...studentForm,
                   name: val,
-                  username: clean ? `${clean}.fit` : "",
-                  password: clean ? `${clean}123` : ""
+                  username: studentForm.username || (clean ? `${clean}.fit` : ""),
+                  password: studentForm.password || (clean ? `${clean}123` : "")
                 });
               }}
               placeholder="Ej: Nicolás Gómez"
@@ -360,17 +495,17 @@ export const MasterDashboard = () => {
             <div style={{ display: "flex", gap: "10px" }}>
               <button
                 type="button"
-                className={`btn ${newStudentForm.gender === "male" ? "btn-primary" : "btn-secondary"}`}
+                className={`btn ${studentForm.gender === "male" ? "btn-primary" : "btn-secondary"}`}
                 style={{ flex: 1 }}
-                onClick={() => setNewStudentForm({ ...newStudentForm, gender: "male" })}
+                onClick={() => setStudentForm({ ...studentForm, gender: "male" })}
               >
                 👨 Masculino (Silueta Azul)
               </button>
               <button
                 type="button"
-                className={`btn ${newStudentForm.gender === "female" ? "btn-lime" : "btn-secondary"}`}
-                style={{ flex: 1, background: newStudentForm.gender === "female" ? "#FF2D55" : "" }}
-                onClick={() => setNewStudentForm({ ...newStudentForm, gender: "female" })}
+                className={`btn ${studentForm.gender === "female" ? "btn-lime" : "btn-secondary"}`}
+                style={{ flex: 1, background: studentForm.gender === "female" ? "#FF2D55" : "" }}
+                onClick={() => setStudentForm({ ...studentForm, gender: "female" })}
               >
                 👩 Femenino (Silueta Rosa)
               </button>
@@ -381,8 +516,8 @@ export const MasterDashboard = () => {
             <label className="form-label">Asignar a Profesor</label>
             <select
               className="form-select"
-              value={newStudentForm.trainerId}
-              onChange={(e) => setNewStudentForm({ ...newStudentForm, trainerId: e.target.value })}
+              value={studentForm.trainerId}
+              onChange={(e) => setStudentForm({ ...studentForm, trainerId: e.target.value })}
               required
             >
               {trainers.map((t) => (
@@ -393,12 +528,12 @@ export const MasterDashboard = () => {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
             <div className="form-group">
-              <label className="form-label">Usuario de Acceso (Sin mail)</label>
+              <label className="form-label">Usuario de Acceso</label>
               <input
                 type="text"
                 className="form-input"
-                value={newStudentForm.username}
-                onChange={(e) => setNewStudentForm({ ...newStudentForm, username: e.target.value })}
+                value={studentForm.username}
+                onChange={(e) => setStudentForm({ ...studentForm, username: e.target.value })}
                 placeholder="nicolas.fit"
                 required
               />
@@ -408,8 +543,8 @@ export const MasterDashboard = () => {
               <input
                 type="text"
                 className="form-input"
-                value={newStudentForm.password}
-                onChange={(e) => setNewStudentForm({ ...newStudentForm, password: e.target.value })}
+                value={studentForm.password}
+                onChange={(e) => setStudentForm({ ...studentForm, password: e.target.value })}
                 placeholder="nicolas123"
                 required
               />
@@ -418,7 +553,7 @@ export const MasterDashboard = () => {
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
             <button type="button" className="btn btn-ghost" onClick={() => setShowStudentModal(false)}>Cancelar</button>
-            <button type="submit" className="btn btn-lime">Crear Alumno</button>
+            <button type="submit" className="btn btn-lime">{editingStudent ? "Guardar Cambios" : "Crear Alumno"}</button>
           </div>
         </form>
       </Modal>
