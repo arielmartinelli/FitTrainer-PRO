@@ -3,10 +3,10 @@ import {
   getMasterAdmin,
   getTrainers,
   getStudents,
+  getRoutines,
   initializeStorage
 } from "../services/storageService";
 import { supabase, isSupabaseConfigured } from "../services/supabaseClient";
-import { fetchCloudData } from "../services/cloudSyncService";
 
 const AuthContext = createContext(null);
 const SESSION_KEY = "fittrainer_active_session_v1";
@@ -16,43 +16,25 @@ export const AuthProvider = ({ children }) => {
   const [role, setRole] = useState("guest"); // "admin" | "trainer" | "student" | "guest"
   const [trainers, setTrainers] = useState([]);
   const [students, setStudents] = useState([]);
+  const [routines, setRoutines] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const refreshData = async () => {
     initializeStorage();
     let loadedTrainers = getTrainers();
     let loadedStudents = getStudents();
+    let loadedRoutines = getRoutines();
 
     setTrainers(loadedTrainers);
     setStudents(loadedStudents);
-
-    // Cargar datos remotos desde la nube para sincronizar instantáneamente entre Celular y PC
-    try {
-      const cloudData = await fetchCloudData();
-      if (cloudData) {
-        if (cloudData.trainers && Array.isArray(cloudData.trainers) && cloudData.trainers.length > 0) {
-          setTrainers(cloudData.trainers);
-          localStorage.setItem("fittrainer_trainers_v1", JSON.stringify(cloudData.trainers));
-          loadedTrainers = cloudData.trainers;
-        }
-        if (cloudData.students && Array.isArray(cloudData.students) && cloudData.students.length > 0) {
-          setStudents(cloudData.students);
-          localStorage.setItem("fittrainer_students_v1", JSON.stringify(cloudData.students));
-          loadedStudents = cloudData.students;
-        }
-        if (cloudData.routines && Array.isArray(cloudData.routines)) {
-          localStorage.setItem("fittrainer_routines_v1", JSON.stringify(cloudData.routines));
-        }
-      }
-    } catch (e) {
-      console.warn("Cloud sync fetch:", e);
-    }
+    setRoutines(loadedRoutines);
 
     // Cargar datos remotos en vivo desde Supabase si la base de datos está conectada
     if (isSupabaseConfigured()) {
       try {
         const { data: dbTrainers } = await supabase.from("trainers").select("*");
         const { data: dbStudents } = await supabase.from("students").select("*");
+        const { data: dbRoutines } = await supabase.from("routines").select("*");
 
         if (dbTrainers && dbTrainers.length > 0) {
           const mappedTrainers = dbTrainers.map(t => ({
@@ -91,12 +73,26 @@ export const AuthProvider = ({ children }) => {
           setStudents(mappedStudents);
           localStorage.setItem("fittrainer_students_v1", JSON.stringify(mappedStudents));
         }
+
+        if (dbRoutines && dbRoutines.length > 0) {
+          const mappedRoutines = dbRoutines.map(r => ({
+            id: r.id,
+            trainerId: r.trainer_id,
+            title: r.title,
+            category: r.category,
+            durationWeeks: r.duration_weeks,
+            description: r.description,
+            days: r.days
+          }));
+          setRoutines(mappedRoutines);
+          localStorage.setItem("fittrainer_routines_v1", JSON.stringify(mappedRoutines));
+        }
       } catch (err) {
         console.warn("Supabase live fetch fallback:", err);
       }
     }
 
-    return { loadedTrainers, loadedStudents };
+    return { loadedTrainers, loadedStudents, loadedRoutines };
   };
 
   useEffect(() => {
@@ -190,6 +186,7 @@ export const AuthProvider = ({ children }) => {
         role,
         trainers,
         students,
+        routines,
         loading,
         loginAdmin,
         loginTrainer,
