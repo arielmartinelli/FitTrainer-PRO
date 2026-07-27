@@ -24,8 +24,6 @@ export const WorkoutTracker = ({ student }) => {
   const [completedSetsMap, setCompletedSetsMap] = useState({});
   const [exerciseWeightsMap, setExerciseWeightsMap] = useState({});
   const [timerSeconds, setTimerSeconds] = useState(null);
-  const [showFinishModal, setShowFinishModal] = useState(false);
-  const [studentNote, setStudentNote] = useState("");
   const [sessionCompletedMsg, setSessionCompletedMsg] = useState("");
   const [newPrNotice, setNewPrNotice] = useState("");
 
@@ -85,9 +83,8 @@ export const WorkoutTracker = ({ student }) => {
     setTimerSeconds(seconds);
   };
 
-  const handleFinishWorkout = (e) => {
-    e.preventDefault();
-    
+  // FINALIZAR SESIÓN DE ENTRENAMIENTO DIRECTAMENTE SIN PEDIR COMENTARIOS
+  const handleFinishWorkoutDirectly = () => {
     const logs = currentDay.exercises.map((ex, eIdx) => {
       const weight = exerciseWeightsMap[`w${selectedWeek}_d${selectedDayIndex}_e${eIdx}`] || "Según plantilla";
       const setsDone = Array.from({ length: ex.sets }).filter((_, sIdx) => completedSetsMap[`w${selectedWeek}_d${selectedDayIndex}_e${eIdx}_s${sIdx}`]).length;
@@ -102,13 +99,12 @@ export const WorkoutTracker = ({ student }) => {
       dayName: `${currentDay.dayName} (Semana ${selectedWeek} de ${durationWeeks})`,
       weekNumber: selectedWeek,
       durationMinutes: 60,
-      studentNotes: studentNote,
+      studentNotes: "",
       logs
     });
 
     refreshData();
-    setShowFinishModal(false);
-    setSessionCompletedMsg(`🎉 ¡Entrenamiento de Semana ${selectedWeek} registrado exitosamente!`);
+    setSessionCompletedMsg(`🎉 ¡Entrenamiento de ${currentDay.dayName} (Semana ${selectedWeek}) registrado exitosamente!`);
     setTimeout(() => setSessionCompletedMsg(""), 5000);
   };
 
@@ -211,7 +207,7 @@ export const WorkoutTracker = ({ student }) => {
             </span>
           </div>
 
-          <button className="btn btn-lime btn-sm" onClick={() => setShowFinishModal(true)}>
+          <button className="btn btn-lime btn-sm" onClick={handleFinishWorkoutDirectly}>
             <CheckCircle2 size={16} /> Finalizar Sesión
           </button>
         </div>
@@ -336,7 +332,7 @@ export const WorkoutTracker = ({ student }) => {
         </div>
 
         <div style={{ marginTop: "20px" }}>
-          <button className="btn btn-lime btn-lg" style={{ width: "100%", borderRadius: "14px" }} onClick={() => setShowFinishModal(true)}>
+          <button className="btn btn-lime btn-lg" style={{ width: "100%", borderRadius: "14px" }} onClick={handleFinishWorkoutDirectly}>
             <CheckCircle2 size={20} /> Completar Sesión de Semana {selectedWeek}
           </button>
         </div>
@@ -346,45 +342,6 @@ export const WorkoutTracker = ({ student }) => {
       {/* Floating Rest Timer */}
       {timerSeconds !== null && (
         <RestTimer defaultSeconds={timerSeconds} onClose={() => setTimerSeconds(null)} />
-      )}
-
-      {/* Modal Finalizar Entrenamiento */}
-      {showFinishModal && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)",
-          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "16px"
-        }}>
-          <div className="glass-panel animate-fade-in" style={{ width: "100%", maxWidth: "480px", padding: "24px" }}>
-            <h3 style={{ fontSize: "1.2rem", color: "var(--accent-green)", marginBottom: "6px" }}>
-              🏆 Finalizar {currentDay.dayName} (Semana {selectedWeek})
-            </h3>
-            <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "16px" }}>
-              Envía un comentario a tu entrenador sobre la sesión de hoy.
-            </p>
-
-            <form onSubmit={handleFinishWorkout}>
-              <div className="form-group">
-                <label className="form-label">Comentarios o Feedback para el Profesor</label>
-                <textarea
-                  className="form-textarea"
-                  placeholder="Ej: Excelente entrenamiento! En sentadillas subí a 85kg sin molestia..."
-                  value={studentNote}
-                  onChange={(e) => setStudentNote(e.target.value)}
-                />
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setShowFinishModal(false)}>
-                  Volver a la Rutina
-                </button>
-                <button type="submit" className="btn btn-lime">
-                  Guardar y Notificar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
       )}
 
     </div>

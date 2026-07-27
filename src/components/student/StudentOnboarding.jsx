@@ -10,13 +10,20 @@ import {
   Moon,
   Plus,
   Minus,
-  CheckCircle2
+  CheckCircle2,
+  Lock,
+  Scale,
+  Ruler,
+  Calendar,
+  Target
 } from "lucide-react";
 
 export const StudentOnboarding = ({ student, onCompleted }) => {
   const { refreshData } = useAuth();
   const [step, setStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const isAlreadyCompleted = student?.questionnaireCompleted;
 
   // Inicialización de respuestas con todos los datos métricos en 0 por defecto
   const [answers, setAnswers] = useState(
@@ -61,13 +68,13 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
   };
 
   useEffect(() => {
-    if (step === 1) {
+    if (step === 1 && !isAlreadyCompleted) {
       setTimeout(() => {
         scrollKgToValue(answers.weightKg);
         scrollGmToValue(answers.weightGrams);
       }, 50);
     }
-  }, [step]);
+  }, [step, isAlreadyCompleted]);
 
   // Manejar Scroll en Rueda de Kilos
   const handleKgScroll = () => {
@@ -123,6 +130,102 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
       heightCm: Math.max(0, Math.min(230, Number(prev.heightCm || 0) + delta))
     }));
   };
+
+  // SI EL CUESTIONARIO YA FUE COMPLETADO -> MOSTRAR VISTA BLOQUEADA DE SOLO LECTURA
+  if (isAlreadyCompleted) {
+    const qData = student?.questionnaireData;
+    return (
+      <div className="animate-fade-in" style={{ maxWidth: "600px", margin: "20px auto" }}>
+        <div className="glass-panel" style={{ padding: "28px 20px", background: "#FFFFFF" }}>
+          
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+            <div style={{ width: "46px", height: "46px", borderRadius: "50%", background: "rgba(52,199,89,0.15)", border: "2px solid #34C759", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <CheckCircle2 size={24} color="#34C759" />
+            </div>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <h2 style={{ fontSize: "1.3rem", margin: 0 }}>Cuestionario Diagnóstico Completado</h2>
+                <span className="badge badge-success"><Lock size={12} /> Guardado</span>
+              </div>
+              <span style={{ fontSize: "0.825rem", color: "var(--text-secondary)" }}>
+                Tus datos de diagnóstico ya han sido registrados y enviados a tu profesor.
+              </span>
+            </div>
+          </div>
+
+          <div style={{ padding: "12px 16px", background: "#F2F2F7", borderRadius: "12px", fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "20px", borderLeft: "4px solid var(--accent-green)" }}>
+            🔒 <strong>Información Bloqueada</strong>: Este cuestionario ya fue enviado y no puede ser modificado. Si necesitas actualizar algún dato biométrico, consulta directamente con tu entrenador.
+          </div>
+
+          {/* Resumen de Métricas Registradas */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "10px" }}>
+              
+              <div style={{ background: "#F2F2F7", padding: "12px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
+                <User size={20} color="var(--accent-blue)" />
+                <div>
+                  <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 700 }}>GÉNERO</span>
+                  <div style={{ fontWeight: 800, fontSize: "0.9rem" }}>
+                    {qData?.gender === "female" ? "👩 Femenino" : "👨 Masculino"}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ background: "#F2F2F7", padding: "12px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
+                <Calendar size={20} color="var(--accent-blue)" />
+                <div>
+                  <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 700 }}>EDAD</span>
+                  <div style={{ fontWeight: 800, fontSize: "0.9rem" }}>{qData?.age || "-"} años</div>
+                </div>
+              </div>
+
+              <div style={{ background: "#F2F2F7", padding: "12px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
+                <Scale size={20} color="var(--accent-green)" />
+                <div>
+                  <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 700 }}>PESO</span>
+                  <div style={{ fontWeight: 800, fontSize: "0.9rem", color: "var(--accent-green)" }}>{qData?.weightKg || "-"} kg</div>
+                </div>
+              </div>
+
+              <div style={{ background: "#F2F2F7", padding: "12px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
+                <Ruler size={20} color="var(--accent-indigo)" />
+                <div>
+                  <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 700 }}>ALTURA</span>
+                  <div style={{ fontWeight: 800, fontSize: "0.9rem" }}>{qData?.heightCm || "-"} cm</div>
+                </div>
+              </div>
+
+            </div>
+
+            <div style={{ background: "#F2F2F7", padding: "14px", borderRadius: "12px" }}>
+              <span style={{ fontSize: "0.72rem", color: "var(--accent-blue)", fontWeight: 700, textTransform: "uppercase" }}>OBJETIVO PRINCIPAL</span>
+              <div style={{ fontWeight: 700, fontSize: "0.95rem", marginTop: "2px" }}>{qData?.mainGoal || student.goal}</div>
+            </div>
+
+            <div style={{ background: "#F2F2F7", padding: "14px", borderRadius: "12px" }}>
+              <span style={{ fontSize: "0.72rem", color: "var(--accent-red)", fontWeight: 700, textTransform: "uppercase" }}>DOLENCIAS O LESIONES DECLARADAS</span>
+              <div style={{ fontWeight: 600, fontSize: "0.875rem", marginTop: "2px" }}>{qData?.injuries || "Sin lesiones ni molestias"}</div>
+            </div>
+
+          </div>
+
+          <div style={{ marginTop: "24px" }}>
+            <button
+              className="btn btn-lime btn-lg"
+              style={{ width: "100%", borderRadius: "12px" }}
+              onClick={() => {
+                if (onCompleted) onCompleted();
+              }}
+            >
+              Ir a Mi Rutina de Entrenamiento <ArrowRight size={18} />
+            </button>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
 
   if (isSubmitted) {
     return (
