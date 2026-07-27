@@ -48,11 +48,44 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1 {
+  font-family: -apple-system, BlinkMacSystemFont, 'Outfit', 'SF Pro Display', sans-serif;
+  font-size: 2.1rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+h2, h3, h4, h5, h6 {
   font-family: -apple-system, BlinkMacSystemFont, 'Outfit', 'SF Pro Display', sans-serif;
   font-weight: 700;
   letter-spacing: -0.025em;
   color: var(--text-primary);
+}
+
+/* Transformación de Vista Móvil */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2.25rem !important;
+    font-weight: 900 !important;
+    letter-spacing: -0.04em !important;
+    line-height: 1.15 !important;
+  }
+
+  h2 {
+    font-size: 1.55rem !important;
+    font-weight: 800 !important;
+  }
+
+  .main-content {
+    padding: 12px 10px 105px 10px !important;
+  }
+
+  .glass-panel {
+    border-radius: 18px !important;
+    padding: 18px 14px !important;
+  }
 }
 
 /* Responsive visibility utilities */
@@ -271,12 +304,6 @@ h1, h2, h3, h4, h5, h6 {
   width: 100%;
   margin: 0 auto;
   padding: 20px 16px 80px 16px;
-}
-
-@media (max-width: 768px) {
-  .main-content {
-    padding: 14px 12px 100px 12px;
-  }
 }
 
 /* Animations */

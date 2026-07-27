@@ -90,9 +90,11 @@ export const CleanLoginScreen = () => {
       >
         {/* Logo Branding - Rayo Azul sin fondo */}
         <div style={{ textAlign: "center", marginBottom: "24px" }}>
-          <Zap size={46} color="var(--accent-blue)" strokeWidth={2.6} style={{ marginBottom: "8px" }} />
-          <h1 style={{ fontSize: "1.65rem", fontWeight: 800, color: "var(--text-primary)" }}>FitTrainer PRO</h1>
-          <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+          <Zap size={52} color="var(--accent-blue)" strokeWidth={2.8} style={{ marginBottom: "8px" }} />
+          <h1 style={{ fontSize: "2.2rem", fontWeight: 900, color: "var(--text-primary)", letterSpacing: "-0.035em" }}>
+            FitTrainer PRO
+          </h1>
+          <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", marginTop: "4px", fontWeight: 500 }}>
             Software de Gestión de Entrenamientos
           </p>
         </div>
@@ -102,7 +104,7 @@ export const CleanLoginScreen = () => {
           <button
             type="button"
             className={`btn btn-sm ${roleType === "trainer" ? "btn-primary" : "btn-ghost"}`}
-            style={{ flex: 1, borderRadius: "8px", fontWeight: 600, fontSize: "0.8rem" }}
+            style={{ flex: 1, borderRadius: "8px", fontWeight: 600, fontSize: "0.85rem" }}
             onClick={() => handleModeChange("trainer")}
           >
             Profesor
@@ -110,7 +112,7 @@ export const CleanLoginScreen = () => {
           <button
             type="button"
             className={`btn btn-sm ${roleType === "student" ? "btn-lime" : "btn-ghost"}`}
-            style={{ flex: 1, borderRadius: "8px", fontWeight: 600, fontSize: "0.8rem" }}
+            style={{ flex: 1, borderRadius: "8px", fontWeight: 600, fontSize: "0.85rem" }}
             onClick={() => handleModeChange("student")}
           >
             Alumno
@@ -118,7 +120,7 @@ export const CleanLoginScreen = () => {
           <button
             type="button"
             className={`btn btn-sm ${roleType === "admin" ? "btn-secondary" : "btn-ghost"}`}
-            style={{ flex: 1, borderRadius: "8px", fontWeight: 600, fontSize: "0.8rem" }}
+            style={{ flex: 1, borderRadius: "8px", fontWeight: 600, fontSize: "0.85rem" }}
             onClick={() => handleModeChange("admin")}
           >
             Admin
@@ -194,7 +196,7 @@ export const CleanLoginScreen = () => {
           <button
             type="submit"
             className={`btn ${roleType === "student" ? "btn-lime" : "btn-primary"} btn-lg`}
-            style={{ width: "100%", borderRadius: "12px" }}
+            style={{ width: "100%", borderRadius: "12px", fontWeight: 700 }}
           >
             <ShieldCheck size={18} /> Iniciar Sesión
           </button>
