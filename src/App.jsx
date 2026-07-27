@@ -10,6 +10,7 @@ import { StudentDetailClean } from "./components/trainer/StudentDetailClean";
 import { PaymentsClean } from "./components/trainer/PaymentsClean";
 import { RoutineBuilder } from "./components/trainer/RoutineBuilder";
 import { StudentCleanHome } from "./components/student/StudentCleanHome";
+import { CordobaContactBanner } from "./components/common/CordobaContactBanner";
 
 const MainApp = () => {
   const { currentUser, role } = useAuth();
@@ -24,6 +25,10 @@ const MainApp = () => {
 
   return (
     <div className="app-container">
+      
+      {/* Banner de Contacto / Cotización en Córdoba (Se cierra a los 5s o con la cruz) */}
+      <CordobaContactBanner />
+
       {/* Apple Header */}
       {currentUser && (
         <AppleHeader
