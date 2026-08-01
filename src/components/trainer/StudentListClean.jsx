@@ -1,283 +1,350 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { saveStudent, toggleStudentAccess } from "../../services/storageService";
+import { toggleStudentAccess, isStudentUsernameTaken } from "../../services/storageService";
+import { provisionStudent } from "../../services/authService";
+import { generateTempPassword } from "../../services/cryptoService";
+import { getPaymentLabel, toISODate, addOneMonth } from "../../services/billingService";
+import { getAdherence, ADHERENCE_LABEL } from "../../services/progressService";
 import { StudentAvatar } from "../common/StudentAvatar";
 import { Modal } from "../common/Modal";
-import { Users, Search, Plus, Eye, Key, UserX, UserCheck, CheckCircle2, AlertCircle } from "lucide-react";
+import { Search, Plus, Eye, UserX, UserCheck, CheckCircle2, AlertCircle, Flame, Loader2 } from "lucide-react";
+
+const emptyForm = () => ({
+  name: "",
+  email: "",
+  phone: "",
+  gender: "male",
+  joinDate: toISODate(new Date()),
+  nextDueDate: toISODate(addOneMonth(new Date())),
+  goal: "Hipertrofia Muscular",
+  planName: "Plan Mensual",
+  planPrice: 28000,
+  username: "",
+  password: ""
+});
 
 export const StudentListClean = ({ onSelectStudent, isCreateModalOpen, setIsCreateModalOpen }) => {
   const { currentUser, students, refreshData } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTooltipStudentId, setActiveTooltipStudentId] = useState(null);
+  const [filter, setFilter] = useState("all"); // all | active | attention
+  const [form, setForm] = useState(emptyForm);
+  const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const [newStudentForm, setNewStudentForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    gender: "male",
-    joinDate: new Date().toISOString().split("T")[0],
-    goal: "Hipertrofia Muscular",
-    planName: "Plan Mensual",
-    planPrice: 28000,
-    username: "",
-    password: ""
-  });
-
-  const trainerStudents = students.filter((s) => s.trainerId === currentUser?.id);
-
-  const filteredStudents = trainerStudents.filter(
-    (s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || (s.email || "").toLowerCase().includes(searchQuery.toLowerCase())
+  const trainerStudents = useMemo(
+    () => students.filter((s) => s.trainerId === currentUser?.id),
+    [students, currentUser?.id]
   );
 
-  const handleNameChange = (e) => {
-    const val = e.target.value;
-    const cleanUser = val.toLowerCase().replace(/[^a-z0-9]/g, "");
-    setNewStudentForm({
-      ...newStudentForm,
-      name: val,
-      username: cleanUser ? `${cleanUser}.fit` : "",
-      password: cleanUser ? `${cleanUser}123` : ""
+  const filteredStudents = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return trainerStudents.filter((s) => {
+      const matchesSearch =
+        !q ||
+        s.name.toLowerCase().includes(q) ||
+        (s.email || "").toLowerCase().includes(q) ||
+        (s.username || "").toLowerCase().includes(q) ||
+        (s.phone || "").includes(q);
+
+      if (!matchesSearch) return false;
+      if (filter === "active") return s.status !== "revoked";
+      if (filter === "attention") {
+        const adherence = getAdherence(s);
+        return adherence.state === "inactive" || adherence.state === "never" || !s.questionnaireCompleted;
+      }
+      return true;
     });
+  }, [trainerStudents, searchQuery, filter]);
+
+  const handleNameChange = (value) => {
+    const clean = value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // saca tildes
+      .replace(/[^a-z0-9]/g, "");
+    setForm((prev) => ({
+      ...prev,
+      name: value,
+      // Solo autocompleta si el usuario todavía no tocó esos campos manualmente.
+      username: prev.usernameTouched ? prev.username : clean ? `${clean}.fit` : "",
+      password: prev.passwordTouched ? prev.password : clean ? generateTempPassword(clean) : ""
+    }));
   };
 
-  const handleCreateStudent = (e) => {
+  const openCreateModal = () => {
+    setForm(emptyForm());
+    setFormError("");
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCreateStudent = async (e) => {
     e.preventDefault();
-    if (!newStudentForm.name) return;
+    if (saving) return;
 
-    saveStudent({
-      ...newStudentForm,
-      trainerId: currentUser?.id
-    });
+    if (!form.name.trim()) return setFormError("Ingresá el nombre del alumno.");
+    if (!form.username.trim()) return setFormError("Ingresá un usuario de acceso.");
+    // Antes no se validaba nada y dos alumnos podían quedar con el mismo usuario.
+    if (isStudentUsernameTaken(form.username)) {
+      return setFormError(`El usuario "${form.username}" ya está en uso. Elegí otro.`);
+    }
+    if (!form.phone.trim()) {
+      return setFormError("Cargá el teléfono: se usa para mandarle las credenciales y los avisos de cuota por WhatsApp.");
+    }
 
-    refreshData();
-    setIsCreateModalOpen(false);
+    setFormError("");
+    setSaving(true);
+    try {
+      const { usernameTouched, passwordTouched, ...payload } = form;
+      // Crea la cuenta de Supabase Auth (si hay nube) y después la ficha,
+      // usando el uid de Auth como id para que RLS reconozca al alumno.
+      await provisionStudent({ ...payload, trainerId: currentUser?.id, planPrice: Number(form.planPrice) || 0 });
+      await refreshData();
+      setIsCreateModalOpen(false);
+      setForm(emptyForm());
+    } catch (err) {
+      console.error(err);
+      setFormError(err.message || "No se pudo crear el alumno. Intentá de nuevo.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleToggleAccess = (studentId) => {
-    toggleStudentAccess(studentId);
-    refreshData();
-  };
-
-  const toggleTooltip = (e, studentId) => {
-    e.stopPropagation();
-    setActiveTooltipStudentId(activeTooltipStudentId === studentId ? null : studentId);
+  const handleToggleAccess = async (studentId) => {
+    await toggleStudentAccess(studentId);
+    await refreshData();
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-        <div>
-          <h2 style={{ fontSize: "1.4rem" }}>Mis Alumnos ({trainerStudents.length})</h2>
-          <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-            Listado de clientes asignados a tu cuenta de profesor.
-          </span>
+    <div className="animate-fade-in stack">
+      <div className="row-between">
+        <div style={{ minWidth: 0 }}>
+          <h2 style={{ fontSize: "1.35rem" }}>Mis Alumnos ({trainerStudents.length})</h2>
+          <span style={{ fontSize: "0.84rem", color: "var(--text-secondary)" }}>Fichas, rutinas y accesos.</span>
         </div>
 
-        <button className="btn btn-lime" onClick={() => setIsCreateModalOpen(true)}>
-          <Plus size={18} /> Crear Nuevo Alumno
+        <button className="btn btn-lime" onClick={openCreateModal}>
+          <Plus size={18} /> Crear Alumno
         </button>
       </div>
 
-      <div className="glass-panel" style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: "10px" }}>
-        <Search size={16} color="var(--text-secondary)" />
+      <div className="search-box">
+        <Search size={17} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
         <input
           type="text"
           className="form-input"
-          style={{ background: "transparent", border: "none" }}
-          placeholder="Buscar alumno por nombre..."
+          placeholder="Buscar por nombre, usuario o teléfono..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Buscar alumno"
         />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "14px" }}>
-        {filteredStudents.map((st) => {
-          const isRevoked = st.status === "revoked";
-          const isDone = st.questionnaireCompleted;
-          const showTooltip = activeTooltipStudentId === st.id;
-
-          return (
-            <div key={st.id} className="glass-panel" style={{ padding: "18px", display: "flex", flexDirection: "column", justifyContent: "space-between", opacity: isRevoked ? 0.65 : 1 }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <StudentAvatar gender={st.gender} name={st.name} size={46} />
-                    <div>
-                      <h3 style={{ fontSize: "1.05rem", margin: 0 }}>{st.name}</h3>
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Ingreso: {st.joinDate}</div>
-                    </div>
-                  </div>
-
-                  {/* ICONO DEL CUESTIONARIO (SOLO ICONO POR DEFECTO, CON CLIC DESPLEGABLE) */}
-                  <div
-                    style={{ position: "relative", cursor: "pointer" }}
-                    onClick={(e) => toggleTooltip(e, st.id)}
-                    title="Haz clic para ver el estado del cuestionario"
-                  >
-                    {isDone ? (
-                      <div style={{
-                        width: "34px",
-                        height: "34px",
-                        borderRadius: "50%",
-                        background: "rgba(52, 199, 89, 0.15)",
-                        border: "1px solid rgba(52, 199, 89, 0.3)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center"
-                      }}>
-                        <CheckCircle2 size={18} color="#34C759" />
-                      </div>
-                    ) : (
-                      <div style={{
-                        width: "34px",
-                        height: "34px",
-                        borderRadius: "50%",
-                        background: "rgba(255, 59, 48, 0.15)",
-                        border: "1px solid rgba(255, 59, 48, 0.3)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center"
-                      }}>
-                        <AlertCircle size={18} color="#FF3B30" />
-                      </div>
-                    )}
-
-                    {showTooltip && (
-                      <div style={{
-                        position: "absolute",
-                        right: 0,
-                        top: "40px",
-                        background: "#1C1C1E",
-                        color: "#FFFFFF",
-                        padding: "6px 12px",
-                        borderRadius: "8px",
-                        fontSize: "0.75rem",
-                        whiteSpace: "nowrap",
-                        zIndex: 10,
-                        boxShadow: "0 4px 14px rgba(0,0,0,0.2)"
-                      }}>
-                        {isDone ? "✔️ Cuestionario Realizado" : "❗ Cuestionario Pendiente"}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div style={{ background: "#F2F2F7", padding: "8px 12px", borderRadius: "8px", fontSize: "0.8rem", marginBottom: "12px" }}>
-                  <div>Plan: <strong>{st.planName || "Plan Mensual"}</strong></div>
-                  <div>Login: <strong style={{ color: "var(--accent-blue)" }}>{st.username}</strong></div>
-                  <div>Acceso: <strong>{isRevoked ? "🔴 Suspendido" : "🟢 Activo"}</strong></div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: "6px", borderTop: "1px solid var(--border-subtle)", paddingTop: "10px" }}>
-                <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => onSelectStudent(st)}>
-                  <Eye size={14} /> Ver Ficha
-                </button>
-
-                <button className={`btn btn-sm ${isRevoked ? "btn-lime" : "btn-danger"}`} onClick={() => handleToggleAccess(st.id)} title={isRevoked ? "Habilitar Acceso" : "Quitar Acceso"}>
-                  {isRevoked ? <UserCheck size={14} /> : <UserX size={14} />}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+      <div className="scroll-x-wrap">
+        <div className="scroll-x">
+          {[
+            { key: "all", label: `Todos (${trainerStudents.length})` },
+            { key: "active", label: "Solo activos" },
+            { key: "attention", label: "Requieren atención" }
+          ].map((f) => (
+            <button
+              key={f.key}
+              className={`btn btn-sm ${filter === f.key ? "btn-primary" : "btn-secondary"}`}
+              style={{ borderRadius: "20px" }}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Modal Crear Alumno con Segmented Control de Género Inmune a Deformaciones */}
-      <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Crear Nuevo Alumno">
+      {filteredStudents.length === 0 ? (
+        <div className="glass-panel" style={{ padding: "34px 20px", textAlign: "center", color: "var(--text-secondary)" }}>
+          {trainerStudents.length === 0 ? "Todavía no cargaste alumnos." : "Ningún alumno coincide con la búsqueda."}
+        </div>
+      ) : (
+        <div className="grid-cards">
+          {filteredStudents.map((st) => {
+            const isRevoked = st.status === "revoked";
+            const payment = getPaymentLabel(st);
+            const adherence = getAdherence(st);
+            const adherenceInfo = ADHERENCE_LABEL[adherence.state];
+
+            return (
+              <div
+                key={st.id}
+                className="glass-panel"
+                style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px", opacity: isRevoked ? 0.6 : 1 }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "11px", minWidth: 0 }}>
+                  <StudentAvatar gender={st.gender} name={st.name} size={44} />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <h3 style={{ fontSize: "1rem", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {st.name}
+                    </h3>
+                    <div style={{ fontSize: "0.73rem", color: "var(--text-secondary)" }}>{st.planName || "Plan Mensual"}</div>
+                  </div>
+                  {st.questionnaireCompleted ? (
+                    <CheckCircle2 size={19} color="var(--accent-green)" aria-label="Cuestionario completado" />
+                  ) : (
+                    <AlertCircle size={19} color="var(--accent-red)" aria-label="Cuestionario pendiente" />
+                  )}
+                </div>
+
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  <span className={`badge ${payment.badge}`}>{payment.dot} {payment.text}</span>
+                  <span className={`badge ${adherenceInfo.badge}`}>
+                    <Flame size={11} /> {adherence.thisWeek} esta semana
+                  </span>
+                  {isRevoked && <span className="badge badge-danger">Acceso suspendido</span>}
+                </div>
+
+                <div className="subtle-box" style={{ fontSize: "0.78rem", padding: "10px 12px" }}>
+                  <div>Usuario: <strong style={{ color: "var(--accent-blue)" }}>{st.username}</strong></div>
+                  {st.phone && <div>Tel: <strong>{st.phone}</strong></div>}
+                  <div>Ingreso: <strong>{st.joinDate || "—"}</strong></div>
+                </div>
+
+                <div style={{ display: "flex", gap: "6px", borderTop: "1px solid var(--border-subtle)", paddingTop: "10px" }}>
+                  <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => onSelectStudent(st)}>
+                    <Eye size={14} /> Ver ficha
+                  </button>
+                  <button
+                    className={`btn btn-sm ${isRevoked ? "btn-lime" : "btn-danger"}`}
+                    onClick={() => handleToggleAccess(st.id)}
+                    aria-label={isRevoked ? "Habilitar acceso" : "Suspender acceso"}
+                    title={isRevoked ? "Habilitar acceso" : "Suspender acceso"}
+                  >
+                    {isRevoked ? <UserCheck size={15} /> : <UserX size={15} />}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Alta de alumno */}
+      <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Crear nuevo alumno">
         <form onSubmit={handleCreateStudent}>
+          {formError && (
+            <div
+              role="alert"
+              style={{
+                padding: "10px 12px",
+                background: "rgba(255,59,48,0.1)",
+                border: "1px solid var(--accent-red)",
+                borderRadius: "10px",
+                color: "var(--accent-red)",
+                fontSize: "0.82rem",
+                marginBottom: "14px"
+              }}
+            >
+              {formError}
+            </div>
+          )}
+
           <div className="form-group">
-            <label className="form-label">Nombre Completo</label>
-            <input
-              type="text"
-              className="form-input"
-              value={newStudentForm.name}
-              onChange={handleNameChange}
-              required
-            />
+            <label className="form-label" htmlFor="ns-name">Nombre completo</label>
+            <input id="ns-name" type="text" className="form-input" value={form.name} onChange={(e) => handleNameChange(e.target.value)} required />
           </div>
 
-          <div className="form-group" style={{ marginBottom: "16px" }}>
-            <label className="form-label">Género del Alumno</label>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "8px",
-              background: "#F2F2F7",
-              padding: "4px",
-              borderRadius: "12px"
-            }}>
-              <button
-                type="button"
-                onClick={() => setNewStudentForm({ ...newStudentForm, gender: "male" })}
-                style={{
-                  border: "none",
-                  padding: "10px 12px",
-                  borderRadius: "10px",
-                  fontSize: "0.85rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.16s ease",
-                  background: newStudentForm.gender === "male" ? "#007AFF" : "transparent",
-                  color: newStudentForm.gender === "male" ? "#FFFFFF" : "var(--text-secondary)",
-                  boxShadow: newStudentForm.gender === "male" ? "0 2px 8px rgba(0,122,255,0.3)" : "none"
-                }}
-              >
+          <div className="form-group">
+            <label className="form-label">Género</label>
+            <div className="segmented-2">
+              <button type="button" className="seg-option" data-tone="male" data-active={form.gender === "male"} onClick={() => setForm({ ...form, gender: "male" })}>
                 👨 Masculino
               </button>
-
-              <button
-                type="button"
-                onClick={() => setNewStudentForm({ ...newStudentForm, gender: "female" })}
-                style={{
-                  border: "none",
-                  padding: "10px 12px",
-                  borderRadius: "10px",
-                  fontSize: "0.85rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.16s ease",
-                  background: newStudentForm.gender === "female" ? "#FF2D55" : "transparent",
-                  color: newStudentForm.gender === "female" ? "#FFFFFF" : "var(--text-secondary)",
-                  boxShadow: newStudentForm.gender === "female" ? "0 2px 8px rgba(255,45,85,0.3)" : "none"
-                }}
-              >
+              <button type="button" className="seg-option" data-tone="female" data-active={form.gender === "female"} onClick={() => setForm({ ...form, gender: "female" })}>
                 👩 Femenino
               </button>
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
+          {/* Sin teléfono no funcionaban ni el envío de credenciales ni los avisos de cuota */}
+          <div className="grid-2">
             <div className="form-group">
-              <label className="form-label">Usuario de Login</label>
+              <label className="form-label" htmlFor="ns-phone">Teléfono (WhatsApp)</label>
               <input
-                type="text"
+                id="ns-phone"
+                type="tel"
+                inputMode="tel"
                 className="form-input"
-                value={newStudentForm.username}
-                onChange={(e) => setNewStudentForm({ ...newStudentForm, username: e.target.value })}
+                placeholder="5493511234567"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 required
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Contraseña</label>
+              <label className="form-label" htmlFor="ns-email">Email (opcional)</label>
               <input
+                id="ns-email"
+                type="email"
+                className="form-input"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid-2">
+            <div className="form-group">
+              <label className="form-label" htmlFor="ns-user">Usuario de acceso</label>
+              <input
+                id="ns-user"
                 type="text"
                 className="form-input"
-                value={newStudentForm.password}
-                onChange={(e) => setNewStudentForm({ ...newStudentForm, password: e.target.value })}
+                autoCapitalize="none"
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value, usernameTouched: true })}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="ns-pass">Contraseña inicial</label>
+              <input
+                id="ns-pass"
+                type="text"
+                className="form-input"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value, passwordTouched: true })}
                 required
               />
             </div>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
+          <div className="grid-2">
+            <div className="form-group">
+              <label className="form-label" htmlFor="ns-plan">Plan</label>
+              <input id="ns-plan" type="text" className="form-input" value={form.planName} onChange={(e) => setForm({ ...form, planName: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="ns-price">Valor de la cuota ($)</label>
+              <input
+                id="ns-price"
+                type="text"
+                inputMode="numeric"
+                className="form-input"
+                value={form.planPrice}
+                onChange={(e) => setForm({ ...form, planPrice: e.target.value.replace(/[^0-9]/g, "") })}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="ns-due">Primer vencimiento de cuota</label>
+            <input id="ns-due" type="date" className="form-input" value={form.nextDueDate} onChange={(e) => setForm({ ...form, nextDueDate: e.target.value })} />
+          </div>
+
+          <div className="action-row" style={{ justifyContent: "flex-end", marginTop: "16px" }}>
             <button type="button" className="btn btn-ghost" onClick={() => setIsCreateModalOpen(false)}>Cancelar</button>
-            <button type="submit" className="btn btn-lime">Crear Alumno</button>
+            <button type="submit" className="btn btn-lime" disabled={saving}>
+              {saving && <Loader2 size={16} className="spin" />} {saving ? "Creando..." : "Crear alumno"}
+            </button>
           </div>
         </form>
       </Modal>
-
     </div>
   );
 };

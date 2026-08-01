@@ -1,199 +1,163 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { Zap, LogOut, Dumbbell, ClipboardList, Menu, X, Users, CreditCard } from "lucide-react";
+import { Zap, LogOut, Dumbbell, ClipboardList, TrendingUp, X, RefreshCw, User } from "lucide-react";
 
 export const AppleHeader = ({ activeTab, setActiveTab }) => {
-  const { currentUser, role, logout } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { currentUser, role, logout, syncing, refreshData } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  // Cierra el menú al tocar fuera o al presionar Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   if (!currentUser) return null;
 
+  const roleLabel =
+    role === "admin" ? "👑 Administrador" : role === "trainer" ? "👨‍🏫 Profesor / Entrenador" : "🏋️ Alumno";
+
+  const desktopNav =
+    role === "trainer"
+      ? [
+          { key: "dashboard", label: "Dashboard" },
+          { key: "students", label: "Alumnos" },
+          { key: "payments", label: "Pagos & Finanzas" },
+          { key: "routines", label: "Rutinas & Excel" }
+        ]
+      : role === "student"
+      ? [
+          { key: "workout", label: "Mi Rutina", Icon: Dumbbell },
+          { key: "progress", label: "Mi Progreso", Icon: TrendingUp },
+          { key: "onboarding", label: "Mi Cuestionario", Icon: ClipboardList }
+        ]
+      : [];
+
+  const activeStyle = role === "student" ? "btn-lime" : "btn-primary";
+
   return (
     <header className="glass-header" style={{ position: "sticky", top: 0, zIndex: 100 }}>
-      <div className="main-content" style={{ padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        
-        {/* Brand Logo - Rayo azul sin fondo */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }} onClick={() => setActiveTab("dashboard")}>
-          <Zap size={28} color="var(--accent-blue)" strokeWidth={2.6} />
-          <div>
-            <div style={{ fontFamily: "Outfit", fontWeight: 800, fontSize: "1.15rem", lineHeight: 1 }}>FitTrainer</div>
-            <div style={{ fontSize: "0.68rem", color: "var(--text-secondary)", letterSpacing: "0.04em" }}>PROFESSIONAL</div>
-          </div>
-        </div>
+      <div
+        className="main-content"
+        style={{ padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}
+      >
+        {/* Marca */}
+        <button
+          onClick={() => setActiveTab(role === "student" ? "workout" : "dashboard")}
+          style={{ display: "flex", alignItems: "center", gap: "8px", border: "none", background: "transparent", cursor: "pointer", padding: 0, minWidth: 0 }}
+          aria-label="Ir al inicio"
+        >
+          <Zap size={26} color="var(--accent-blue)" strokeWidth={2.6} />
+          <span style={{ textAlign: "left" }}>
+            <span style={{ display: "block", fontFamily: "Outfit, sans-serif", fontWeight: 800, fontSize: "1.1rem", lineHeight: 1, color: "var(--text-primary)" }}>
+              FitTrainer
+            </span>
+            <span style={{ display: "block", fontSize: "0.62rem", color: "var(--text-secondary)", letterSpacing: "0.06em" }}>
+              PROFESSIONAL
+            </span>
+          </span>
+        </button>
 
-        {/* Navigation Tabs for Trainer Desktop */}
-        {role === "trainer" && (
+        {/* Navegación de escritorio (en móvil se usa la barra inferior) */}
+        {desktopNav.length > 0 && (
           <nav style={{ display: "flex", gap: "4px" }} className="desktop-only">
-            <button
-              className={`btn ${activeTab === "dashboard" ? "btn-primary" : "btn-ghost"}`}
-              style={{ borderRadius: "20px", padding: "6px 14px", fontSize: "0.85rem" }}
-              onClick={() => setActiveTab("dashboard")}
-            >
-              Dashboard
-            </button>
-            <button
-              className={`btn ${activeTab === "students" ? "btn-primary" : "btn-ghost"}`}
-              style={{ borderRadius: "20px", padding: "6px 14px", fontSize: "0.85rem" }}
-              onClick={() => setActiveTab("students")}
-            >
-              Alumnos
-            </button>
-            <button
-              className={`btn ${activeTab === "payments" ? "btn-primary" : "btn-ghost"}`}
-              style={{ borderRadius: "20px", padding: "6px 14px", fontSize: "0.85rem" }}
-              onClick={() => setActiveTab("payments")}
-            >
-              Pagos & Finanzas
-            </button>
-            <button
-              className={`btn ${activeTab === "routines" ? "btn-primary" : "btn-ghost"}`}
-              style={{ borderRadius: "20px", padding: "6px 14px", fontSize: "0.85rem" }}
-              onClick={() => setActiveTab("routines")}
-            >
-              Rutinas & Excel
-            </button>
+            {desktopNav.map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                className={`btn btn-sm ${activeTab === key ? activeStyle : "btn-ghost"}`}
+                style={{ borderRadius: "20px" }}
+                onClick={() => setActiveTab(key)}
+              >
+                {Icon && <Icon size={15} />} {label}
+              </button>
+            ))}
           </nav>
         )}
 
-        {/* Navigation Tabs for Student Desktop */}
-        {role === "student" && (
-          <nav style={{ display: "flex", gap: "4px" }} className="desktop-only">
-            <button
-              className={`btn ${activeTab === "workout" ? "btn-lime" : "btn-ghost"}`}
-              style={{ borderRadius: "20px", padding: "6px 14px", fontSize: "0.85rem" }}
-              onClick={() => setActiveTab("workout")}
-            >
-              <Dumbbell size={15} /> Mi Rutina
-            </button>
-            <button
-              className={`btn ${activeTab === "onboarding" ? "btn-lime" : "btn-ghost"}`}
-              style={{ borderRadius: "20px", padding: "6px 14px", fontSize: "0.85rem" }}
-              onClick={() => setActiveTab("onboarding")}
-            >
-              <ClipboardList size={15} /> Mi Cuestionario
-            </button>
-          </nav>
-        )}
-
-        {/* User Info & Actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} className="desktop-only">
-            {role === "admin" && <span className="badge badge-blue">👑 ADMIN</span>}
-            {role === "trainer" && <span className="badge badge-blue">👨‍🏫 {currentUser.name}</span>}
-            {role === "student" && <span className="badge badge-success">🏋️ {currentUser.name}</span>}
-          </div>
+        {/* Cuenta */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", position: "relative" }} ref={menuRef}>
+          {syncing && (
+            <RefreshCw size={15} className="spin" color="var(--text-secondary)" aria-label="Sincronizando" />
+          )}
 
           <button
-            className="btn btn-ghost btn-sm desktop-only"
-            onClick={logout}
-            title="Cerrar sesión"
-            style={{ borderRadius: "50%", padding: "6px", width: "32px", height: "32px" }}
+            className="btn btn-ghost btn-icon"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-expanded={menuOpen}
+            aria-label="Menú de cuenta"
+            style={{ background: "var(--bg-subtle)" }}
           >
-            <LogOut size={16} color="var(--accent-red)" />
+            {menuOpen ? <X size={20} /> : <User size={19} color="var(--accent-blue)" />}
           </button>
 
-          {/* Hamburger Menu Toggle (Mobile view) */}
-          <button
-            className="btn btn-ghost btn-sm mobile-only"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            style={{ padding: "6px" }}
-            aria-label="Abrir menú"
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-
-        </div>
-
-      </div>
-
-      {/* Mobile Drawer (Menú Hamburguesa) */}
-      {mobileMenuOpen && (
-        <div className="animate-fade-in mobile-only" style={{
-          padding: "16px",
-          background: "#FFFFFF",
-          borderTop: "1px solid var(--border-subtle)",
-          boxShadow: "0 10px 20px rgba(0,0,0,0.05)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "10px"
-        }}>
-          
-          <div style={{ padding: "8px 12px", background: "#F2F2F7", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>{currentUser.name}</div>
-              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-                {role === "admin" ? "👑 Administrador" : role === "trainer" ? "👨‍🏫 Profesor / Entrenador" : "🏋️ Alumno"}
+          {/*
+            Antes en móvil este menú repetía exactamente los mismos ítems que la barra
+            inferior. Ahora solo tiene lo que no está en ningún otro lado: perfil y salir.
+          */}
+          {menuOpen && (
+            <div
+              className="animate-fade-in glass-panel"
+              style={{
+                position: "absolute",
+                top: "calc(100% + 8px)",
+                right: 0,
+                minWidth: "230px",
+                background: "var(--bg-card)",
+                padding: "12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                boxShadow: "0 12px 30px rgba(0,0,0,0.12)",
+                zIndex: 200
+              }}
+            >
+              <div className="subtle-box">
+                <div style={{ fontWeight: 700, fontSize: "0.92rem", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {currentUser.name}
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{roleLabel}</div>
+                {role === "trainer" && currentUser.brandName && (
+                  <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                    {currentUser.brandName}
+                  </div>
+                )}
               </div>
+
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ justifyContent: "flex-start" }}
+                onClick={() => {
+                  refreshData();
+                  setMenuOpen(false);
+                }}
+              >
+                <RefreshCw size={15} /> Sincronizar ahora
+              </button>
+
+              <button
+                className="btn btn-danger btn-sm"
+                style={{ justifyContent: "flex-start" }}
+                onClick={() => {
+                  logout();
+                  setMenuOpen(false);
+                }}
+              >
+                <LogOut size={15} /> Cerrar sesión
+              </button>
             </div>
-          </div>
-
-          {/* Trainer Mobile Navigation */}
-          {role === "trainer" && (
-            <>
-              <button
-                className={`btn ${activeTab === "dashboard" ? "btn-primary" : "btn-ghost"}`}
-                style={{ justifyContent: "flex-start", borderRadius: "10px" }}
-                onClick={() => { setActiveTab("dashboard"); setMobileMenuOpen(false); }}
-              >
-                Dashboard
-              </button>
-              <button
-                className={`btn ${activeTab === "students" ? "btn-primary" : "btn-ghost"}`}
-                style={{ justifyContent: "flex-start", borderRadius: "10px" }}
-                onClick={() => { setActiveTab("students"); setMobileMenuOpen(false); }}
-              >
-                <Users size={16} /> Mis Alumnos
-              </button>
-              <button
-                className={`btn ${activeTab === "payments" ? "btn-primary" : "btn-ghost"}`}
-                style={{ justifyContent: "flex-start", borderRadius: "10px" }}
-                onClick={() => { setActiveTab("payments"); setMobileMenuOpen(false); }}
-              >
-                <CreditCard size={16} /> Cobros & Cuotas
-              </button>
-              <button
-                className={`btn ${activeTab === "routines" ? "btn-primary" : "btn-ghost"}`}
-                style={{ justifyContent: "flex-start", borderRadius: "10px" }}
-                onClick={() => { setActiveTab("routines"); setMobileMenuOpen(false); }}
-              >
-                <Dumbbell size={16} /> Rutinas & Excel
-              </button>
-            </>
           )}
-
-          {/* Student Mobile Navigation */}
-          {role === "student" && (
-            <>
-              <button
-                className={`btn ${activeTab === "workout" ? "btn-lime" : "btn-ghost"}`}
-                style={{ justifyContent: "flex-start", borderRadius: "10px" }}
-                onClick={() => { setActiveTab("workout"); setMobileMenuOpen(false); }}
-              >
-                <Dumbbell size={16} /> Mi Rutina
-              </button>
-              <button
-                className={`btn ${activeTab === "onboarding" ? "btn-lime" : "btn-ghost"}`}
-                style={{ justifyContent: "flex-start", borderRadius: "10px" }}
-                onClick={() => { setActiveTab("onboarding"); setMobileMenuOpen(false); }}
-              >
-                <ClipboardList size={16} /> Mi Cuestionario
-              </button>
-            </>
-          )}
-
-          {/* LogOut Button */}
-          <button
-            className="btn btn-danger"
-            style={{ width: "100%", marginTop: "8px", borderRadius: "10px" }}
-            onClick={() => { logout(); setMobileMenuOpen(false); }}
-          >
-            <LogOut size={16} /> Cerrar Sesión (Salir)
-          </button>
-
         </div>
-      )}
-
+      </div>
     </header>
   );
 };

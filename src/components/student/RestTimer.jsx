@@ -1,120 +1,194 @@
-import React, { useState, useEffect } from "react";
-import { Play, Pause, RotateCcw, X, Bell, GripHorizontal } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Play, Pause, RotateCcw, X, GripHorizontal } from "lucide-react";
+import { Portal } from "../common/Portal";
 
-export const RestTimer = ({ defaultSeconds = 90, onClose }) => {
-  const [secondsLeft, setSecondsLeft] = useState(defaultSeconds);
-  const [isActive, setIsActive] = useState(true);
-  const [totalSeconds, setTotalSeconds] = useState(defaultSeconds);
-
-  // Drag Position State (default top-right)
-  const [position, setPosition] = useState({ x: window.innerWidth - 340, y: 80 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-
-  const playBeepSound = () => {
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.6);
-    } catch (e) {
-      console.log("Audio play error", e);
-    }
-  };
+const useIsMobile = (breakpoint = 768) => {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= breakpoint);
 
   useEffect(() => {
-    let interval = null;
-    if (isActive && secondsLeft > 0) {
-      interval = setInterval(() => {
-        setSecondsLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (secondsLeft === 0 && isActive) {
-      setIsActive(false);
-      playBeepSound();
-      if (navigator.vibrate) {
-        navigator.vibrate([200, 100, 200]);
-      }
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const handler = (e) => setIsMobile(e.matches);
+    setIsMobile(mq.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [breakpoint]);
+
+  return isMobile;
+};
+
+/**
+ * Cronómetro de descanso.
+ * En celular es una barra fija sobre la navegación inferior (antes era una ventana
+ * arrastrable de 300px fijos que tapaba el ejercicio y quedaba mal posicionada).
+ * En escritorio se mantiene flotante y arrastrable.
+ */
+export const RestTimer = ({ defaultSeconds = 90, onClose }) => {
+  const isMobile = useIsMobile();
+  const [totalSeconds, setTotalSeconds] = useState(defaultSeconds);
+  const [secondsLeft, setSecondsLeft] = useState(defaultSeconds);
+  const [isActive, setIsActive] = useState(true);
+  const [finished, setFinished] = useState(false);
+
+  const playBeep = useCallback(() => {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.65);
+      setTimeout(() => ctx.close?.(), 1200);
+    } catch (err) {
+      console.warn("No se pudo reproducir el sonido de descanso.", err);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!isActive || secondsLeft <= 0) return;
+    const interval = setInterval(() => setSecondsLeft((prev) => prev - 1), 1000);
     return () => clearInterval(interval);
   }, [isActive, secondsLeft]);
 
-  // Dragging event handlers
-  const handleMouseDown = (e) => {
-    setIsDragging(true);
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    setDragOffset({
-      x: clientX - position.x,
-      y: clientY - position.y
-    });
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    setPosition({
-      x: Math.max(10, Math.min(window.innerWidth - 310, clientX - dragOffset.x)),
-      y: Math.max(10, Math.min(window.innerHeight - 180, clientY - dragOffset.y))
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
   useEffect(() => {
-    if (isDragging) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
-      window.addEventListener("touchmove", handleMouseMove);
-      window.addEventListener("touchend", handleMouseUp);
-    }
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("touchmove", handleMouseMove);
-      window.removeEventListener("touchend", handleMouseUp);
-    };
-  }, [isDragging]);
+    if (secondsLeft > 0 || finished) return;
+    setFinished(true);
+    setIsActive(false);
+    playBeep();
+    navigator.vibrate?.([200, 100, 200]);
+  }, [secondsLeft, finished, playBeep]);
 
-  const toggleTimer = () => setIsActive(!isActive);
-
-  const addExtraSeconds = (extraSecs) => {
-    setSecondsLeft((prev) => prev + extraSecs);
-    setTotalSeconds((prev) => prev + extraSecs);
+  const addSeconds = (extra) => {
+    setSecondsLeft((prev) => Math.max(0, prev) + extra);
+    setTotalSeconds((prev) => prev + extra);
+    setFinished(false);
+    setIsActive(true);
   };
 
-  const resetTimer = (newSecs = totalSeconds) => {
-    setTotalSeconds(newSecs);
-    setSecondsLeft(newSecs);
+  const reset = () => {
+    setSecondsLeft(totalSeconds);
+    setFinished(false);
     setIsActive(true);
   };
 
   const formatTime = (secs) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s < 10 ? "0" : ""}${s}`;
+    const safe = Math.max(0, secs);
+    const m = Math.floor(safe / 60);
+    const s = safe % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
   };
 
-  const progressPct = Math.min(100, ((totalSeconds - secondsLeft) / totalSeconds) * 100);
+  const progressPct = totalSeconds > 0 ? Math.min(100, ((totalSeconds - Math.max(0, secondsLeft)) / totalSeconds) * 100) : 0;
+  const timeColor = finished ? "var(--accent-green)" : "#FFFFFF";
+
+  const controls = (
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: "8px", minWidth: 0 }}>
+          <span style={{ fontSize: "2rem", fontWeight: 800, fontFamily: "Outfit, sans-serif", color: timeColor, lineHeight: 1 }}>
+            {formatTime(secondsLeft)}
+          </span>
+          <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.6)", fontWeight: 600 }}>
+            {finished ? "¡A la siguiente serie!" : "descanso"}
+          </span>
+        </div>
+
+        <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+          <button className="btn btn-sm" onClick={() => addSeconds(15)} style={{ background: "rgba(255,255,255,0.16)", color: "#FFF" }}>
+            +15s
+          </button>
+          <button className="btn btn-sm" onClick={() => addSeconds(30)} style={{ background: "rgba(255,255,255,0.16)", color: "#FFF" }}>
+            +30s
+          </button>
+        </div>
+      </div>
+
+      <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.18)", borderRadius: "2px", overflow: "hidden", margin: "10px 0" }}>
+        <div
+          style={{
+            width: `${progressPct}%`,
+            height: "100%",
+            background: finished ? "var(--accent-green)" : "var(--accent-blue)",
+            transition: "width 1s linear"
+          }}
+        />
+      </div>
+
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button className={`btn btn-sm ${isActive ? "btn-secondary" : "btn-lime"}`} style={{ flex: 1 }} onClick={() => setIsActive(!isActive)}>
+          {isActive ? <Pause size={15} /> : <Play size={15} />} {isActive ? "Pausar" : "Reanudar"}
+        </button>
+        <button className="btn btn-sm" onClick={reset} style={{ background: "rgba(255,255,255,0.16)", color: "#FFF" }} aria-label="Reiniciar descanso">
+          <RotateCcw size={15} />
+        </button>
+        <button className="btn btn-sm" onClick={onClose} style={{ background: "rgba(255,255,255,0.16)", color: "#FFF" }} aria-label="Cerrar cronómetro">
+          <X size={15} />
+        </button>
+      </div>
+    </>
+  );
+
+  // Portal: si no, cualquier ancestro con transform lo descoloca.
+  if (isMobile) {
+    return (
+      <Portal>
+        <div className="rest-timer-mobile animate-slide-up" role="timer" aria-live="polite">
+          {controls}
+        </div>
+      </Portal>
+    );
+  }
+
+  return (
+    <Portal>
+      <DesktopTimer onClose={onClose}>{controls}</DesktopTimer>
+    </Portal>
+  );
+};
+
+/** Panel flotante arrastrable (solo escritorio). */
+const DesktopTimer = ({ children }) => {
+  const [position, setPosition] = useState(() => ({
+    x: Math.max(16, (typeof window !== "undefined" ? window.innerWidth : 1200) - 330),
+    y: 90
+  }));
+  const dragging = useRef(false);
+  const offset = useRef({ x: 0, y: 0 });
+
+  const onPointerDown = (e) => {
+    dragging.current = true;
+    offset.current = { x: e.clientX - position.x, y: e.clientY - position.y };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+
+  const onPointerMove = (e) => {
+    if (!dragging.current) return;
+    setPosition({
+      x: Math.max(8, Math.min(window.innerWidth - 308, e.clientX - offset.current.x)),
+      y: Math.max(8, Math.min(window.innerHeight - 190, e.clientY - offset.current.y))
+    });
+  };
+
+  const onPointerUp = () => {
+    dragging.current = false;
+  };
 
   return (
     <div
+      className="animate-fade-in"
+      role="timer"
+      aria-live="polite"
       style={{
         position: "fixed",
         left: `${position.x}px`,
         top: `${position.y}px`,
-        zIndex: 2000,
+        zIndex: 1200,
         width: "300px",
         background: "rgba(28, 28, 30, 0.96)",
         backdropFilter: "blur(20px)",
@@ -126,84 +200,28 @@ export const RestTimer = ({ defaultSeconds = 90, onClose }) => {
         color: "#FFFFFF",
         userSelect: "none"
       }}
-      className="animate-fade-in"
     >
-      {/* Draggable Header Bar */}
       <div
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleMouseDown}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
         style={{
           display: "flex",
-          justify: "space-between",
+          /* antes decía `justify` (prop inválida) y el contenido quedaba pegado */
+          justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "6px",
+          marginBottom: "8px",
           cursor: "grab",
-          paddingBottom: "4px",
-          borderBottom: "1px solid rgba(255,255,255,0.1)"
+          paddingBottom: "6px",
+          borderBottom: "1px solid rgba(255,255,255,0.1)",
+          touchAction: "none"
         }}
       >
-        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--accent-blue)", display: "flex", alignItems: "center", gap: "6px" }}>
-          <GripHorizontal size={14} color="rgba(255,255,255,0.5)" /> RELOJ FLOTANTE
-        </div>
-
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={onClose}
-          style={{ padding: "2px", height: "22px", color: "rgba(255,255,255,0.7)" }}
-        >
-          <X size={16} />
-        </button>
+        <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--accent-blue)", display: "flex", alignItems: "center", gap: "6px" }}>
+          <GripHorizontal size={14} color="rgba(255,255,255,0.5)" /> CRONÓMETRO DE DESCANSO
+        </span>
       </div>
-
-      {/* Time Display */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-        <div style={{ fontSize: "2.2rem", fontWeight: 800, fontFamily: "Outfit", color: secondsLeft === 0 ? "var(--accent-green)" : "#FFFFFF", lineHeight: 1 }}>
-          {formatTime(secondsLeft)}
-        </div>
-
-        <div style={{ display: "flex", gap: "4px" }}>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => addExtraSeconds(15)}
-            style={{ padding: "3px 6px", fontSize: "0.75rem", background: "rgba(255,255,255,0.15)", color: "#FFF" }}
-          >
-            +15s
-          </button>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => addExtraSeconds(30)}
-            style={{ padding: "3px 6px", fontSize: "0.75rem", background: "rgba(255,255,255,0.15)", color: "#FFF" }}
-          >
-            +30s
-          </button>
-        </div>
-      </div>
-
-      {/* Progress Line */}
-      <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.15)", borderRadius: "2px", overflow: "hidden", marginBottom: "10px" }}>
-        <div style={{ width: `${progressPct}%`, height: "100%", background: "var(--accent-blue)", transition: "width 1s linear" }} />
-      </div>
-
-      {/* Controls */}
-      <div style={{ display: "flex", gap: "6px" }}>
-        <button
-          className={`btn ${isActive ? "btn-secondary" : "btn-lime"} btn-sm`}
-          style={{ flex: 1, padding: "6px 12px", fontSize: "0.8rem" }}
-          onClick={toggleTimer}
-        >
-          {isActive ? <Pause size={14} /> : <Play size={14} />} {isActive ? "Pausar" : "Reanudar"}
-        </button>
-
-        <button
-          className="btn btn-ghost btn-sm"
-          style={{ color: "#FFF", padding: "6px 10px" }}
-          onClick={() => resetTimer(totalSeconds)}
-          title="Reiniciar"
-        >
-          <RotateCcw size={14} />
-        </button>
-      </div>
-
+      {children}
     </div>
   );
 };

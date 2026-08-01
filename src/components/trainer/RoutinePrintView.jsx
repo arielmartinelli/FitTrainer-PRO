@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import html2pdf from "html2pdf.js";
 import { Modal } from "../common/Modal";
 import { Download, Send, Copy, Zap, User, Dumbbell } from "lucide-react";
@@ -7,15 +7,17 @@ import { useAuth } from "../../context/AuthContext";
 export const RoutinePrintView = ({ isOpen, onClose, routine, student }) => {
   const { currentUser } = useAuth();
   const pdfRef = useRef(null);
+  const [generating, setGenerating] = useState(false);
 
   if (!routine) return null;
 
   const trainerName = currentUser?.name || "Entrenador FitTrainer";
   const studentName = student?.name || "Alumno / Plantilla Generica";
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     const element = pdfRef.current;
-    if (!element) return;
+    if (!element || generating) return;
+    setGenerating(true);
 
     const opt = {
       margin: [10, 10, 10, 10], // top, left, bottom, right in mm
@@ -25,7 +27,14 @@ export const RoutinePrintView = ({ isOpen, onClose, routine, student }) => {
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
     };
 
-    html2pdf().set(opt).from(element).save();
+    try {
+      await html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo generar el PDF. Probá de nuevo.");
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const generateWhatsAppMessage = () => {
@@ -57,7 +66,9 @@ export const RoutinePrintView = ({ isOpen, onClose, routine, student }) => {
 
   const handleOpenWhatsApp = () => {
     const text = encodeURIComponent(generateWhatsAppMessage());
-    window.open(`https://wa.me/?text=${text}`, "_blank");
+    // Si la rutina es de un alumno concreto, se abre directo su chat.
+    const phone = (student?.phone || "").replace(/[^0-9]/g, "");
+    window.open(`https://wa.me/${phone}?text=${text}`, "_blank", "noopener");
   };
 
   return (
@@ -65,12 +76,12 @@ export const RoutinePrintView = ({ isOpen, onClose, routine, student }) => {
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         
         {/* Actions Bar */}
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "space-between", background: "#F2F2F7", padding: "14px", borderRadius: "12px" }}>
-          <button className="btn btn-lime" onClick={handleDownloadPDF} style={{ padding: "10px 20px" }}>
-            <Download size={18} /> Descargar PDF (.pdf)
+        <div className="action-row subtle-box" style={{ justifyContent: "space-between" }}>
+          <button className="btn btn-lime" onClick={handleDownloadPDF} disabled={generating}>
+            <Download size={18} /> {generating ? "Generando..." : "Descargar PDF"}
           </button>
           
-          <div style={{ display: "flex", gap: "8px" }}>
+          <div className="action-row">
             <button className="btn btn-secondary btn-sm" onClick={handleCopyWhatsAppText}>
               <Copy size={14} /> Copiar Texto
             </button>
@@ -83,6 +94,7 @@ export const RoutinePrintView = ({ isOpen, onClose, routine, student }) => {
         {/* Clean PDF Content Container (Only Trainer, Student, and Routine - No Screen UI) */}
         <div
           ref={pdfRef}
+          className="print-area"
           style={{
             background: "#FFFFFF",
             padding: "24px 28px",
@@ -102,7 +114,7 @@ export const RoutinePrintView = ({ isOpen, onClose, routine, student }) => {
           </div>
 
           {/* Trainer & Student Info Card */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", background: "#F2F2F7", padding: "12px 16px", borderRadius: "10px", marginBottom: "18px" }}>
+          <div className="grid-2" style={{ background: "#F2F2F7", padding: "12px 16px", borderRadius: "10px", marginBottom: "18px" }}>
             <div>
               <div style={{ fontSize: "0.7rem", color: "#8E8E93", fontWeight: 700, textTransform: "uppercase" }}>ENTRENADOR / PROFESOR</div>
               <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#007AFF" }}>👨‍🏫 {trainerName}</div>
@@ -134,7 +146,8 @@ export const RoutinePrintView = ({ isOpen, onClose, routine, student }) => {
                   📌 {d.dayName}
                 </h3>
                 
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+                <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", minWidth: "460px", borderCollapse: "collapse", fontSize: "0.85rem" }}>
                   <thead>
                     <tr style={{ background: "#E5E5EA", textAlign: "left", color: "#333", fontSize: "0.75rem" }}>
                       <th style={{ padding: "6px 8px" }}>#</th>
@@ -160,6 +173,7 @@ export const RoutinePrintView = ({ isOpen, onClose, routine, student }) => {
                     ))}
                   </tbody>
                 </table>
+                </div>
 
               </div>
             ))}

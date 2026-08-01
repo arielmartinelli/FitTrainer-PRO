@@ -1,38 +1,168 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { saveStudentQuestionnaire } from "../../services/storageService";
 import { useAuth } from "../../context/AuthContext";
 import {
   ClipboardList,
   ArrowRight,
+  ArrowLeft,
   User,
   Activity,
   Heart,
   Moon,
-  Plus,
   Minus,
+  Plus,
   CheckCircle2,
   Lock,
   Scale,
   Ruler,
   Calendar,
-  Target
+  Loader2
 } from "lucide-react";
+
+/**
+ * Control numérico grande: dos botones táctiles de 48px + campo escribible + atajos.
+ * Reemplaza a la "rueda" de 201 elementos que hacía setState en cada evento de scroll
+ * y se trababa en el celular (además había que scrollear 90 items para llegar a 90 kg).
+ */
+const NumberStepper = ({ label, value, onChange, min = 0, max = 300, step = 1, unit, presets = [], decimals = 0, hint }) => {
+  const clamp = (n) => Math.min(max, Math.max(min, n));
+  const format = (n) => (decimals > 0 ? Number(n).toFixed(decimals) : String(Math.round(n)));
+
+  const bump = (delta) => onChange(clamp(Number(value || 0) + delta));
+
+  return (
+    <div className="subtle-box" style={{ padding: "16px" }}>
+      <label className="form-label" style={{ display: "block", marginBottom: "10px", textAlign: "center" }}>
+        {label}
+      </label>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+        <button
+          type="button"
+          onClick={() => bump(-step)}
+          aria-label={`Disminuir ${label}`}
+          style={{
+            width: "48px",
+            height: "48px",
+            minWidth: "48px",
+            borderRadius: "50%",
+            border: "none",
+            background: "var(--bg-card)",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer"
+          }}
+        >
+          <Minus size={20} />
+        </button>
+
+        <div style={{ display: "flex", alignItems: "baseline", gap: "4px", minWidth: "120px", justifyContent: "center" }}>
+          <input
+            type="text"
+            inputMode="decimal"
+            aria-label={label}
+            value={value === 0 ? "" : format(value)}
+            placeholder="0"
+            onChange={(e) => {
+              const raw = e.target.value.replace(",", ".").replace(/[^0-9.]/g, "");
+              onChange(raw === "" ? 0 : clamp(parseFloat(raw) || 0));
+            }}
+            style={{
+              width: "100px",
+              border: "none",
+              background: "transparent",
+              fontSize: "2.1rem",
+              fontWeight: 800,
+              color: "var(--accent-blue)",
+              textAlign: "right",
+              outline: "none",
+              fontFamily: "inherit",
+              padding: 0
+            }}
+          />
+          <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)", fontWeight: 600 }}>{unit}</span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => bump(step)}
+          aria-label={`Aumentar ${label}`}
+          style={{
+            width: "48px",
+            height: "48px",
+            minWidth: "48px",
+            borderRadius: "50%",
+            border: "none",
+            background: "var(--bg-card)",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer"
+          }}
+        >
+          <Plus size={20} />
+        </button>
+      </div>
+
+      {hint && (
+        <div style={{ textAlign: "center", fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "6px" }}>{hint}</div>
+      )}
+
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value || min}
+        onChange={(e) => onChange(Number(e.target.value))}
+        aria-label={`${label} (deslizador)`}
+        style={{ width: "100%", accentColor: "var(--accent-blue)", marginTop: "14px", height: "22px", cursor: "pointer" }}
+      />
+
+      {presets.length > 0 && (
+        <div style={{ display: "flex", justifyContent: "center", gap: "6px", marginTop: "10px", flexWrap: "wrap" }}>
+          {presets.map((p) => (
+            <button key={p} type="button" className="chip" data-active={Number(value) === p} onClick={() => onChange(p)}>
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const GenderPicker = ({ value, onChange }) => (
+  <div className="segmented-2">
+    <button type="button" className="seg-option" data-tone="male" data-active={value === "male"} onClick={() => onChange("male")}>
+      👨 Masculino
+    </button>
+    <button type="button" className="seg-option" data-tone="female" data-active={value === "female"} onClick={() => onChange("female")}>
+      👩 Femenino
+    </button>
+  </div>
+);
+
+const TOTAL_STEPS = 4;
 
 export const StudentOnboarding = ({ student, onCompleted }) => {
   const { refreshData } = useAuth();
   const [step, setStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const isAlreadyCompleted = student?.questionnaireCompleted;
+  const isAlreadyCompleted = !!student?.questionnaireCompleted;
 
-  // Inicialización de respuestas con todos los datos métricos en 0 por defecto
   const [answers, setAnswers] = useState(
     student?.questionnaireData || {
       fullName: student?.name || "",
       gender: student?.gender || "male",
       age: 0,
       weightKg: 0,
-      weightGrams: 0,
       heightCm: 0,
       mainGoal: student?.goal || "Hipertrofia Muscular",
       injuries: "",
@@ -46,701 +176,358 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
     }
   );
 
-  const kgWheelRef = useRef(null);
-  const gmWheelRef = useRef(null);
-  const ITEM_HEIGHT = 40; // 40px por elemento en la rueda
+  const update = (patch) => setAnswers((prev) => ({ ...prev, ...patch }));
 
-  // Centrar Rueda Kilos
-  const scrollKgToValue = (val) => {
-    if (kgWheelRef.current) {
-      kgWheelRef.current.scrollTop = val * ITEM_HEIGHT;
+  const validateStep = () => {
+    if (step === 1) {
+      if (!answers.fullName.trim()) return "Ingresá tu nombre completo.";
+      if (!answers.age) return "Ingresá tu edad.";
+      if (!answers.weightKg) return "Ingresá tu peso corporal.";
+      if (!answers.heightCm) return "Ingresá tu altura.";
     }
+    return "";
   };
 
-  // Centrar Rueda Gramos
-  const scrollGmToValue = (val) => {
-    if (gmWheelRef.current) {
-      const gmIndex = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900].indexOf(val);
-      if (gmIndex >= 0) {
-        gmWheelRef.current.scrollTop = gmIndex * ITEM_HEIGHT;
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (step === 1 && !isAlreadyCompleted) {
-      setTimeout(() => {
-        scrollKgToValue(answers.weightKg);
-        scrollGmToValue(answers.weightGrams);
-      }, 50);
-    }
-  }, [step, isAlreadyCompleted]);
-
-  // Manejar Scroll en Rueda de Kilos
-  const handleKgScroll = () => {
-    if (!kgWheelRef.current) return;
-    const st = kgWheelRef.current.scrollTop;
-    const index = Math.max(0, Math.min(200, Math.round(st / ITEM_HEIGHT)));
-    if (index !== answers.weightKg) {
-      setAnswers((prev) => ({ ...prev, weightKg: index }));
-    }
-  };
-
-  // Manejar Scroll en Rueda de Gramos
-  const handleGmScroll = () => {
-    if (!gmWheelRef.current) return;
-    const st = gmWheelRef.current.scrollTop;
-    const gramsList = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900];
-    const index = Math.max(0, Math.min(gramsList.length - 1, Math.round(st / ITEM_HEIGHT)));
-    const selectedGm = gramsList[index];
-    if (selectedGm !== answers.weightGrams) {
-      setAnswers((prev) => ({ ...prev, weightGrams: selectedGm }));
-    }
-  };
-
-  const handleNextStep = (e) => {
+  const handleNext = async (e) => {
     e.preventDefault();
-    if (step < 4) {
-      setStep(step + 1);
-    } else {
-      const totalWeight = Number(answers.weightKg) + Number(answers.weightGrams) / 1000;
-      const finalAnswers = {
-        ...answers,
-        weightKg: Number(totalWeight.toFixed(2))
-      };
 
-      saveStudentQuestionnaire(student.id, finalAnswers);
-      refreshData();
+    const validationError = validateStep();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setError("");
+
+    if (step < TOTAL_STEPS) {
+      setStep(step + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await saveStudentQuestionnaire(student.id, {
+        ...answers,
+        weightKg: Number(Number(answers.weightKg).toFixed(1)),
+        heightCm: Math.round(Number(answers.heightCm)),
+        age: Math.round(Number(answers.age))
+      });
+      await refreshData();
       setIsSubmitted(true);
+    } catch (err) {
+      console.error(err);
+      setError("No se pudo guardar el cuestionario. Intentá de nuevo.");
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Ajustar Edad
-  const updateAge = (delta) => {
-    setAnswers((prev) => ({
-      ...prev,
-      age: Math.max(0, Math.min(100, Number(prev.age || 0) + delta))
-    }));
-  };
+  /* ---------- Vista de solo lectura (ya completado) ---------- */
+  if (isAlreadyCompleted && !isSubmitted) {
+    const q = student?.questionnaireData || {};
+    const metrics = [
+      { Icon: User, label: "GÉNERO", value: q.gender === "female" ? "👩 Femenino" : "👨 Masculino", color: "var(--accent-blue)" },
+      { Icon: Calendar, label: "EDAD", value: `${q.age || "-"} años`, color: "var(--accent-blue)" },
+      { Icon: Scale, label: "PESO", value: `${q.weightKg || "-"} kg`, color: "var(--accent-green)" },
+      { Icon: Ruler, label: "ALTURA", value: `${q.heightCm || "-"} cm`, color: "var(--accent-indigo)" }
+    ];
 
-  // Ajustar Altura en CM
-  const updateHeightCm = (delta) => {
-    setAnswers((prev) => ({
-      ...prev,
-      heightCm: Math.max(0, Math.min(230, Number(prev.heightCm || 0) + delta))
-    }));
-  };
-
-  // SI EL CUESTIONARIO YA FUE COMPLETADO -> MOSTRAR VISTA BLOQUEADA DE SOLO LECTURA
-  if (isAlreadyCompleted) {
-    const qData = student?.questionnaireData;
     return (
-      <div className="animate-fade-in" style={{ maxWidth: "600px", margin: "20px auto" }}>
-        <div className="glass-panel" style={{ padding: "28px 20px", background: "#FFFFFF" }}>
-          
+      <div className="animate-fade-in" style={{ maxWidth: "600px", margin: "0 auto" }}>
+        <div className="glass-panel" style={{ padding: "22px 18px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-            <div style={{ width: "46px", height: "46px", borderRadius: "50%", background: "rgba(52,199,89,0.15)", border: "2px solid #34C759", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <CheckCircle2 size={24} color="#34C759" />
+            <div
+              style={{
+                width: "44px",
+                height: "44px",
+                minWidth: "44px",
+                borderRadius: "50%",
+                background: "rgba(52,199,89,0.15)",
+                border: "2px solid var(--accent-green)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              <CheckCircle2 size={23} color="var(--accent-green)" />
             </div>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <h2 style={{ fontSize: "1.3rem", margin: 0 }}>Cuestionario Diagnóstico Completado</h2>
-                <span className="badge badge-success"><Lock size={12} /> Guardado</span>
-              </div>
-              <span style={{ fontSize: "0.825rem", color: "var(--text-secondary)" }}>
-                Tus datos de diagnóstico ya han sido registrados y enviados a tu profesor.
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ fontSize: "1.15rem", margin: 0 }}>Cuestionario completado</h2>
+              <span className="badge badge-success" style={{ marginTop: "4px" }}>
+                <Lock size={11} /> Guardado
               </span>
             </div>
           </div>
 
-          <div style={{ padding: "12px 16px", background: "#F2F2F7", borderRadius: "12px", fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "20px", borderLeft: "4px solid var(--accent-green)" }}>
-            🔒 <strong>Información Bloqueada</strong>: Este cuestionario ya fue enviado y no puede ser modificado. Si necesitas actualizar algún dato biométrico, consulta directamente con tu entrenador.
-          </div>
-
-          {/* Resumen de Métricas Registradas */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "10px" }}>
-              
-              <div style={{ background: "#F2F2F7", padding: "12px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
-                <User size={20} color="var(--accent-blue)" />
-                <div>
-                  <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 700 }}>GÉNERO</span>
-                  <div style={{ fontWeight: 800, fontSize: "0.9rem" }}>
-                    {qData?.gender === "female" ? "👩 Femenino" : "👨 Masculino"}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ background: "#F2F2F7", padding: "12px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
-                <Calendar size={20} color="var(--accent-blue)" />
-                <div>
-                  <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 700 }}>EDAD</span>
-                  <div style={{ fontWeight: 800, fontSize: "0.9rem" }}>{qData?.age || "-"} años</div>
-                </div>
-              </div>
-
-              <div style={{ background: "#F2F2F7", padding: "12px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
-                <Scale size={20} color="var(--accent-green)" />
-                <div>
-                  <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 700 }}>PESO</span>
-                  <div style={{ fontWeight: 800, fontSize: "0.9rem", color: "var(--accent-green)" }}>{qData?.weightKg || "-"} kg</div>
-                </div>
-              </div>
-
-              <div style={{ background: "#F2F2F7", padding: "12px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
-                <Ruler size={20} color="var(--accent-indigo)" />
-                <div>
-                  <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 700 }}>ALTURA</span>
-                  <div style={{ fontWeight: 800, fontSize: "0.9rem" }}>{qData?.heightCm || "-"} cm</div>
-                </div>
-              </div>
-
-            </div>
-
-            <div style={{ background: "#F2F2F7", padding: "14px", borderRadius: "12px" }}>
-              <span style={{ fontSize: "0.72rem", color: "var(--accent-blue)", fontWeight: 700, textTransform: "uppercase" }}>OBJETIVO PRINCIPAL</span>
-              <div style={{ fontWeight: 700, fontSize: "0.95rem", marginTop: "2px" }}>{qData?.mainGoal || student.goal}</div>
-            </div>
-
-            <div style={{ background: "#F2F2F7", padding: "14px", borderRadius: "12px" }}>
-              <span style={{ fontSize: "0.72rem", color: "var(--accent-red)", fontWeight: 700, textTransform: "uppercase" }}>DOLENCIAS O LESIONES DECLARADAS</span>
-              <div style={{ fontWeight: 600, fontSize: "0.875rem", marginTop: "2px" }}>{qData?.injuries || "Sin lesiones ni molestias"}</div>
-            </div>
-
-          </div>
-
-          <div style={{ marginTop: "24px" }}>
-            <button
-              className="btn btn-lime btn-lg"
-              style={{ width: "100%", borderRadius: "12px" }}
-              onClick={() => {
-                if (onCompleted) onCompleted();
-              }}
-            >
-              Ir a Mi Rutina de Entrenamiento <ArrowRight size={18} />
-            </button>
-          </div>
-
-        </div>
-      </div>
-    );
-  }
-
-  if (isSubmitted) {
-    return (
-      <div className="animate-fade-in" style={{ maxWidth: "540px", margin: "40px auto", textAlign: "center" }}>
-        <div className="glass-panel" style={{ padding: "40px 24px", background: "#FFFFFF" }}>
-          <div style={{ width: "70px", height: "70px", borderRadius: "50%", background: "rgba(52,199,89,0.15)", border: "2px solid #34C759", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-            <CheckCircle2 size={38} color="#34C759" />
-          </div>
-          <h2 style={{ fontSize: "1.6rem", color: "var(--text-primary)", marginBottom: "8px" }}>¡Cuestionario Enviado con Éxito!</h2>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", marginBottom: "24px", lineHeight: "1.5" }}>
-            Tus datos de diagnóstico se han guardado correctamente. Tu entrenador ya tiene acceso a tus métricas para diseñar y personalizar tu plan de entrenamiento.
-          </p>
-
-          <button
-            className="btn btn-lime btn-lg"
-            style={{ width: "100%", borderRadius: "12px", fontSize: "1rem" }}
-            onClick={() => {
-              if (onCompleted) onCompleted();
-            }}
+          <div
+            className="subtle-box"
+            style={{ fontSize: "0.83rem", color: "var(--text-secondary)", marginBottom: "18px", borderLeft: "4px solid var(--accent-green)" }}
           >
-            Ir a Mi Rutina <ArrowRight size={18} />
+            🔒 Tus datos ya fueron enviados a tu entrenador. Si necesitás actualizar algo, pedile que te habilite el cuestionario de nuevo.
+          </div>
+
+          <div className="stat-grid">
+            {metrics.map(({ Icon, label, value, color }) => (
+              <div key={label} className="subtle-box" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <Icon size={19} color={color} />
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 700 }}>{label}</span>
+                  <div style={{ fontWeight: 800, fontSize: "0.9rem" }}>{value}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="subtle-box" style={{ marginTop: "12px" }}>
+            <span style={{ fontSize: "0.7rem", color: "var(--accent-blue)", fontWeight: 700 }}>OBJETIVO PRINCIPAL</span>
+            <div style={{ fontWeight: 700, fontSize: "0.92rem", marginTop: "2px" }}>{q.mainGoal || student.goal}</div>
+          </div>
+
+          <div className="subtle-box" style={{ marginTop: "10px" }}>
+            <span style={{ fontSize: "0.7rem", color: "var(--accent-red)", fontWeight: 700 }}>LESIONES DECLARADAS</span>
+            <div style={{ fontWeight: 600, fontSize: "0.86rem", marginTop: "2px" }}>{q.injuries || "Sin lesiones ni molestias"}</div>
+          </div>
+
+          <button className="btn btn-lime btn-lg" style={{ width: "100%", borderRadius: "12px", marginTop: "20px" }} onClick={() => onCompleted?.()}>
+            Ir a mi rutina <ArrowRight size={18} />
           </button>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="animate-fade-in" style={{ maxWidth: "620px", margin: "16px auto" }}>
-      
-      {/* Header Banner */}
-      <div className="glass-panel" style={{ padding: "20px", marginBottom: "16px", borderLeft: "4px solid var(--accent-blue)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "6px" }}>
-          <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "rgba(0,122,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <ClipboardList size={22} color="var(--accent-blue)" />
+  /* ---------- Confirmación ---------- */
+  if (isSubmitted) {
+    return (
+      <div className="animate-fade-in" style={{ maxWidth: "540px", margin: "20px auto", textAlign: "center" }}>
+        <div className="glass-panel" style={{ padding: "36px 22px" }}>
+          <div
+            style={{
+              width: "68px",
+              height: "68px",
+              borderRadius: "50%",
+              background: "rgba(52,199,89,0.15)",
+              border: "2px solid var(--accent-green)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 18px"
+            }}
+          >
+            <CheckCircle2 size={36} color="var(--accent-green)" />
           </div>
-          <div>
-            <h2 style={{ fontSize: "1.3rem", margin: 0 }}>Cuestionario de Diagnóstico Inicial</h2>
-            <span style={{ fontSize: "0.825rem", color: "var(--text-secondary)" }}>
-              Completa tus métricas para que tu entrenador cree tu rutina personalizada.
+          <h2 style={{ fontSize: "1.4rem", marginBottom: "8px" }}>¡Cuestionario enviado!</h2>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.92rem", marginBottom: "22px", lineHeight: 1.5 }}>
+            Tu entrenador ya tiene tus métricas para armarte el plan personalizado.
+          </p>
+          <button className="btn btn-lime btn-lg" style={{ width: "100%", borderRadius: "12px" }} onClick={() => onCompleted?.()}>
+            Ir a mi rutina <ArrowRight size={18} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------- Formulario por pasos ---------- */
+  return (
+    <div className="animate-fade-in" style={{ maxWidth: "620px", margin: "0 auto" }}>
+      <div className="glass-panel" style={{ padding: "18px", marginBottom: "14px", borderLeft: "4px solid var(--accent-blue)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div
+            style={{
+              width: "40px",
+              height: "40px",
+              minWidth: "40px",
+              borderRadius: "50%",
+              background: "rgba(0,122,255,0.12)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+          >
+            <ClipboardList size={21} color="var(--accent-blue)" />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ fontSize: "1.15rem", margin: 0 }}>Cuestionario inicial</h2>
+            <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+              Para que tu entrenador arme tu rutina.
             </span>
           </div>
         </div>
 
-        {/* Progress Bar */}
         <div style={{ width: "100%", height: "6px", background: "rgba(0,0,0,0.06)", borderRadius: "3px", overflow: "hidden", marginTop: "14px" }}>
-          <div style={{ width: `${(step / 4) * 100}%`, height: "100%", background: "var(--accent-blue)", transition: "width 0.3s ease" }} />
+          <div style={{ width: `${(step / TOTAL_STEPS) * 100}%`, height: "100%", background: "var(--accent-blue)", transition: "width 0.3s ease" }} />
         </div>
         <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", textAlign: "right", marginTop: "4px" }}>
-          Paso {step} de 4
+          Paso {step} de {TOTAL_STEPS}
         </div>
       </div>
 
-      {/* Form Steps Container */}
-      <form onSubmit={handleNextStep} className="glass-panel" style={{ padding: "24px" }}>
-        
-        {/* PASO 1: Datos Personales con Ruedas de Peso e Interactivos */}
+      <form onSubmit={handleNext} className="glass-panel" style={{ padding: "18px" }}>
+        {error && (
+          <div
+            role="alert"
+            style={{
+              padding: "10px 12px",
+              background: "rgba(255,59,48,0.1)",
+              border: "1px solid var(--accent-red)",
+              borderRadius: "10px",
+              color: "var(--accent-red)",
+              fontSize: "0.82rem",
+              marginBottom: "14px"
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        {/* PASO 1 */}
         {step === 1 && (
-          <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-              <User size={18} /> 1. Datos Personales & Métricas Interactivas
+          <div className="animate-fade-in stack">
+            <h3 style={{ fontSize: "1.05rem", color: "var(--accent-blue)", display: "flex", alignItems: "center", gap: "8px" }}>
+              <User size={18} /> 1. Tus datos
             </h3>
 
-            {/* Nombre Completo */}
             <div className="form-group">
-              <label className="form-label">Nombre Completo</label>
+              <label className="form-label" htmlFor="q-name">Nombre completo</label>
               <input
+                id="q-name"
                 type="text"
                 className="form-input"
                 value={answers.fullName}
-                onChange={(e) => setAnswers({ ...answers, fullName: e.target.value })}
+                onChange={(e) => update({ fullName: e.target.value })}
                 required
               />
             </div>
 
-            {/* Selector de Género Estilo iOS Segmented Control */}
             <div className="form-group">
-              <label className="form-label">Género del Alumno</label>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "8px",
-                background: "#F2F2F7",
-                padding: "4px",
-                borderRadius: "12px"
-              }}>
-                <button
-                  type="button"
-                  onClick={() => setAnswers({ ...answers, gender: "male" })}
-                  style={{
-                    border: "none",
-                    padding: "10px 12px",
-                    borderRadius: "10px",
-                    fontSize: "0.85rem",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "all 0.16s ease",
-                    background: answers.gender === "male" ? "#007AFF" : "transparent",
-                    color: answers.gender === "male" ? "#FFFFFF" : "var(--text-secondary)",
-                    boxShadow: answers.gender === "male" ? "0 2px 8px rgba(0,122,255,0.3)" : "none"
-                  }}
-                >
-                  👨 Masculino
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setAnswers({ ...answers, gender: "female" })}
-                  style={{
-                    border: "none",
-                    padding: "10px 12px",
-                    borderRadius: "10px",
-                    fontSize: "0.85rem",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "all 0.16s ease",
-                    background: answers.gender === "female" ? "#FF2D55" : "transparent",
-                    color: answers.gender === "female" ? "#FFFFFF" : "var(--text-secondary)",
-                    boxShadow: answers.gender === "female" ? "0 2px 8px rgba(255,45,85,0.3)" : "none"
-                  }}
-                >
-                  👩 Femenino
-                </button>
-              </div>
+              <label className="form-label">Género</label>
+              <GenderPicker value={answers.gender} onChange={(gender) => update({ gender })} />
             </div>
 
-            {/* CONTADOR INTERACTIVO 1: EDAD */}
-            <div style={{ background: "#F2F2F7", padding: "18px", borderRadius: "16px", textAlign: "center" }}>
-              <label className="form-label" style={{ marginBottom: "8px", display: "block", color: "var(--text-secondary)" }}>🎂 EDAD (AÑOS)</label>
-              
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "20px" }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => updateAge(-1)}
-                  style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  <Minus size={20} color="var(--text-primary)" />
-                </button>
+            <NumberStepper
+              label="🎂 EDAD"
+              unit="años"
+              value={answers.age}
+              onChange={(age) => update({ age })}
+              min={10}
+              max={99}
+              presets={[18, 25, 30, 40, 50]}
+            />
 
-                <div style={{ minWidth: "100px" }}>
-                  <span style={{ fontSize: "2.4rem", fontWeight: 800, color: "var(--accent-blue)" }}>{answers.age}</span>
-                  <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginLeft: "4px" }}>años</span>
-                </div>
+            <NumberStepper
+              label="⚖️ PESO CORPORAL"
+              unit="kg"
+              value={answers.weightKg}
+              onChange={(weightKg) => update({ weightKg })}
+              min={30}
+              max={220}
+              step={0.5}
+              decimals={1}
+              presets={[60, 70, 80, 90, 100]}
+              hint="Podés escribir decimales, por ejemplo 78.5"
+            />
 
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => updateAge(1)}
-                  style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  <Plus size={20} color="var(--text-primary)" />
-                </button>
-              </div>
-
-              {/* Botones Rápidos de Edad */}
-              <div style={{ display: "flex", justifyContent: "center", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
-                {[18, 22, 25, 30, 35, 40].map((presetAge) => (
-                  <button
-                    key={presetAge}
-                    type="button"
-                    onClick={() => setAnswers({ ...answers, age: presetAge })}
-                    style={{
-                      border: "none",
-                      padding: "4px 10px",
-                      borderRadius: "14px",
-                      fontSize: "0.75rem",
-                      cursor: "pointer",
-                      background: answers.age === presetAge ? "var(--accent-blue)" : "#E5E5EA",
-                      color: answers.age === presetAge ? "#FFF" : "var(--text-primary)"
-                    }}
-                  >
-                    {presetAge}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* SECCIÓN PESO CORPORAL (CON FRANJA CENTRAL AL MEDIO) */}
-            <div style={{ background: "#F2F2F7", padding: "18px", borderRadius: "16px" }}>
-              <label className="form-label" style={{ marginBottom: "12px", display: "block", color: "var(--text-secondary)", textAlign: "center", fontWeight: 700 }}>
-                ⚖️ Peso corporal
-              </label>
-
-              {/* RUEDAS: RUEDA KILOS (IZQ) Y RUEDA GRAMOS (DER) */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-                
-                {/* RUEDA KILOS */}
-                <div style={{ textAlign: "center" }}>
-                  <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: 700, display: "block", marginBottom: "6px" }}>Rueda kilos</span>
-                  
-                  <div style={{ position: "relative", height: "160px", background: "#FFFFFF", borderRadius: "12px", border: "1px solid var(--border-subtle)", overflow: "hidden" }}>
-                    
-                    {/* FRANJA DE COLOR MARCADA EXACTAMENTE EN EL MEDIO */}
-                    <div style={{
-                      position: "absolute",
-                      top: "60px",
-                      left: "4px",
-                      right: "4px",
-                      height: "40px",
-                      background: "rgba(0, 122, 255, 0.12)",
-                      border: "2px solid #007AFF",
-                      borderRadius: "8px",
-                      pointerEvents: "none",
-                      zIndex: 2
-                    }} />
-
-                    <div
-                      ref={kgWheelRef}
-                      onScroll={handleKgScroll}
-                      style={{
-                        height: "160px",
-                        overflowY: "scroll",
-                        paddingTop: "60px",
-                        paddingBottom: "60px",
-                        scrollSnapType: "y mandatory",
-                        boxSizing: "border-box"
-                      }}
-                    >
-                      {Array.from({ length: 201 }, (_, i) => i).map((kg) => {
-                        const isSelected = answers.weightKg === kg;
-                        return (
-                          <div
-                            key={kg}
-                            onClick={() => {
-                              setAnswers({ ...answers, weightKg: kg });
-                              scrollKgToValue(kg);
-                            }}
-                            style={{
-                              height: "40px",
-                              lineHeight: "40px",
-                              scrollSnapAlign: "center",
-                              fontWeight: isSelected ? 800 : 400,
-                              fontSize: isSelected ? "1.25rem" : "0.9rem",
-                              color: isSelected ? "#007AFF" : "#8E8E93",
-                              cursor: "pointer",
-                              transition: "all 0.10s ease"
-                            }}
-                          >
-                            {kg} kg
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* RUEDA GRAMOS */}
-                <div style={{ textAlign: "center" }}>
-                  <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: 700, display: "block", marginBottom: "6px" }}>Rueda gramos</span>
-                  
-                  <div style={{ position: "relative", height: "160px", background: "#FFFFFF", borderRadius: "12px", border: "1px solid var(--border-subtle)", overflow: "hidden" }}>
-                    
-                    {/* FRANJA DE COLOR MARCADA EXACTAMENTE EN EL MEDIO */}
-                    <div style={{
-                      position: "absolute",
-                      top: "60px",
-                      left: "4px",
-                      right: "4px",
-                      height: "40px",
-                      background: "rgba(255, 45, 85, 0.12)",
-                      border: "2px solid #FF2D55",
-                      borderRadius: "8px",
-                      pointerEvents: "none",
-                      zIndex: 2
-                    }} />
-
-                    <div
-                      ref={gmWheelRef}
-                      onScroll={handleGmScroll}
-                      style={{
-                        height: "160px",
-                        overflowY: "scroll",
-                        paddingTop: "60px",
-                        paddingBottom: "60px",
-                        scrollSnapType: "y mandatory",
-                        boxSizing: "border-box"
-                      }}
-                    >
-                      {[0, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((gm) => {
-                        const isSelected = answers.weightGrams === gm;
-                        return (
-                          <div
-                            key={gm}
-                            onClick={() => {
-                              setAnswers({ ...answers, weightGrams: gm });
-                              scrollGmToValue(gm);
-                            }}
-                            style={{
-                              height: "40px",
-                              lineHeight: "40px",
-                              scrollSnapAlign: "center",
-                              fontWeight: isSelected ? 800 : 400,
-                              fontSize: isSelected ? "1.25rem" : "0.9rem",
-                              color: isSelected ? "#FF2D55" : "#8E8E93",
-                              cursor: "pointer",
-                              transition: "all 0.10s ease"
-                            }}
-                          >
-                            .{gm / 100} ({gm} g)
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Botones de Salto Rápido de Peso */}
-              <div style={{ display: "flex", justifyContent: "center", gap: "6px", marginTop: "14px", flexWrap: "wrap" }}>
-                {[50, 60, 70, 80, 90, 100, 110].map((presetW) => (
-                  <button
-                    key={presetW}
-                    type="button"
-                    onClick={() => {
-                      setAnswers({ ...answers, weightKg: presetW });
-                      scrollKgToValue(presetW);
-                    }}
-                    style={{
-                      border: "none",
-                      padding: "5px 12px",
-                      borderRadius: "14px",
-                      fontSize: "0.78rem",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      background: answers.weightKg === presetW ? "var(--accent-blue)" : "#E5E5EA",
-                      color: answers.weightKg === presetW ? "#FFF" : "var(--text-primary)"
-                    }}
-                  >
-                    {presetW} kg
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* RODILLO / DIAL INTERACTIVO 3: ALTURA EN CENTÍMETROS CON BOTONES GRANDES (48px) */}
-            <div style={{ background: "#F2F2F7", padding: "18px", borderRadius: "16px", textAlign: "center" }}>
-              <label className="form-label" style={{ marginBottom: "8px", display: "block", color: "var(--text-secondary)" }}>📏 ALTURA (CENTÍMETROS)</label>
-              
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "20px", marginBottom: "12px" }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => updateHeightCm(-1)}
-                  style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  <Minus size={20} color="var(--text-primary)" />
-                </button>
-
-                <div>
-                  <span style={{ fontSize: "2.4rem", fontWeight: 800, color: "var(--accent-blue)" }}>{answers.heightCm}</span>
-                  <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginLeft: "4px" }}>cm</span>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>({(answers.heightCm / 100).toFixed(2)} m)</div>
-                </div>
-
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => updateHeightCm(1)}
-                  style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFF", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  <Plus size={20} color="var(--text-primary)" />
-                </button>
-              </div>
-
-              {/* Slider de Rodillo de Altura */}
-              <div style={{ position: "relative", padding: "8px 0" }}>
-                <input
-                  type="range"
-                  min="0"
-                  max="220"
-                  value={answers.heightCm}
-                  onChange={(e) => setAnswers({ ...answers, heightCm: Number(e.target.value) })}
-                  style={{
-                    width: "100%",
-                    accentColor: "var(--accent-blue)",
-                    height: "10px",
-                    borderRadius: "5px",
-                    cursor: "pointer"
-                  }}
-                />
-                
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "0.72rem", color: "var(--text-secondary)" }}>
-                  <span>0 cm</span>
-                  <span>140 cm</span>
-                  <span>170 cm</span>
-                  <span>200 cm</span>
-                  <span>220 cm</span>
-                </div>
-              </div>
-
-              {/* Botones Rápidos de Altura */}
-              <div style={{ display: "flex", justifyContent: "center", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
-                {[155, 165, 170, 175, 180, 185, 190].map((presetH) => (
-                  <button
-                    key={presetH}
-                    type="button"
-                    onClick={() => setAnswers({ ...answers, heightCm: presetH })}
-                    style={{
-                      border: "none",
-                      padding: "5px 10px",
-                      borderRadius: "14px",
-                      fontSize: "0.75rem",
-                      cursor: "pointer",
-                      background: answers.heightCm === presetH ? "var(--accent-blue)" : "#E5E5EA",
-                      color: answers.heightCm === presetH ? "#FFF" : "var(--text-primary)"
-                    }}
-                  >
-                    {presetH} cm
-                  </button>
-                ))}
-              </div>
-
-            </div>
-
+            <NumberStepper
+              label="📏 ALTURA"
+              unit="cm"
+              value={answers.heightCm}
+              onChange={(heightCm) => update({ heightCm })}
+              min={120}
+              max={220}
+              presets={[160, 170, 175, 180, 190]}
+              hint={answers.heightCm ? `${(answers.heightCm / 100).toFixed(2)} m` : ""}
+            />
           </div>
         )}
 
-        {/* PASO 2: Objetivo y Salud / Lesiones */}
+        {/* PASO 2 */}
         {step === 2 && (
-          <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-              <Activity size={18} /> 2. Objetivo Principal & Historial de Salud
+          <div className="animate-fade-in stack">
+            <h3 style={{ fontSize: "1.05rem", color: "var(--accent-blue)", display: "flex", alignItems: "center", gap: "8px" }}>
+              <Activity size={18} /> 2. Objetivo y salud
             </h3>
 
             <div className="form-group">
-              <label className="form-label">Objetivo Principal</label>
-              <select
-                className="form-select"
-                value={answers.mainGoal}
-                onChange={(e) => setAnswers({ ...answers, mainGoal: e.target.value })}
-              >
-                <option value="Hipertrofia Muscular">Hipertrofia Muscular & Masa</option>
-                <option value="Pérdida de Grasa & Tonificación">Pérdida de Grasa & Tonificación</option>
-                <option value="Fuerza Máxima">Fuerza Máxima</option>
-                <option value="Rendimiento Deportivo">Rendimiento Deportivo</option>
-                <option value="Salud & Movilidad">Salud & Movilidad General</option>
+              <label className="form-label" htmlFor="q-goal">Objetivo principal</label>
+              <select id="q-goal" className="form-select" value={answers.mainGoal} onChange={(e) => update({ mainGoal: e.target.value })}>
+                <option value="Hipertrofia Muscular">Hipertrofia muscular y masa</option>
+                <option value="Pérdida de Grasa & Tonificación">Pérdida de grasa y tonificación</option>
+                <option value="Fuerza Máxima">Fuerza máxima</option>
+                <option value="Rendimiento Deportivo">Rendimiento deportivo</option>
+                <option value="Salud & Movilidad">Salud y movilidad general</option>
               </select>
             </div>
 
             <div className="form-group">
-              <label className="form-label">¿Posees alguna dolencia, dolor o lesión previa/actual?</label>
+              <label className="form-label" htmlFor="q-injuries">¿Tenés alguna dolencia, dolor o lesión?</label>
               <textarea
+                id="q-injuries"
                 className="form-textarea"
-                placeholder="Ej: Leve molestia en rodilla derecha al bajar profundo, molestia lumbar o ninguna..."
+                placeholder="Ej: molestia en la rodilla derecha al bajar profundo. Si no tenés nada, escribí 'ninguna'."
                 value={answers.injuries}
-                onChange={(e) => setAnswers({ ...answers, injuries: e.target.value })}
+                onChange={(e) => update({ injuries: e.target.value })}
                 required
               />
             </div>
           </div>
         )}
 
-        {/* PASO 3: Preferencias de Ejercicios y Nivel */}
+        {/* PASO 3 */}
         {step === 3 && (
-          <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-              <Heart size={18} /> 3. Gustos de Ejercicios & Experiencia
+          <div className="animate-fade-in stack">
+            <h3 style={{ fontSize: "1.05rem", color: "var(--accent-blue)", display: "flex", alignItems: "center", gap: "8px" }}>
+              <Heart size={18} /> 3. Preferencias y experiencia
             </h3>
 
             <div className="form-group">
-              <label className="form-label">¿Qué ejercicios te gustan más o prefieres hacer?</label>
+              <label className="form-label" htmlFor="q-fav">Ejercicios que más te gustan</label>
               <input
+                id="q-fav"
                 type="text"
                 className="form-input"
-                placeholder="Ej: Press de banca, Sentadillas, Dominadas, Hip thrust..."
+                placeholder="Press de banca, sentadillas, dominadas..."
                 value={answers.favoriteExercises}
-                onChange={(e) => setAnswers({ ...answers, favoriteExercises: e.target.value })}
+                onChange={(e) => update({ favoriteExercises: e.target.value })}
                 required
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label">¿Qué ejercicios prefieres evitar u odias?</label>
+              <label className="form-label" htmlFor="q-dislike">Ejercicios que preferís evitar</label>
               <input
+                id="q-dislike"
                 type="text"
                 className="form-input"
-                placeholder="Ej: Burpees, Zancadas caminadas, Ninguno..."
+                placeholder="Burpees, zancadas... o 'ninguno'"
                 value={answers.dislikedExercises}
-                onChange={(e) => setAnswers({ ...answers, dislikedExercises: e.target.value })}
+                onChange={(e) => update({ dislikedExercises: e.target.value })}
                 required
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label">Nivel de Experiencia</label>
-              <select
-                className="form-select"
-                value={answers.experienceLevel}
-                onChange={(e) => setAnswers({ ...answers, experienceLevel: e.target.value })}
-              >
-                <option value="Principiante (Menos de 6 meses)">Principiante (Menos de 6 meses)</option>
+              <label className="form-label" htmlFor="q-level">Nivel de experiencia</label>
+              <select id="q-level" className="form-select" value={answers.experienceLevel} onChange={(e) => update({ experienceLevel: e.target.value })}>
+                <option value="Principiante (Menos de 6 meses)">Principiante (menos de 6 meses)</option>
                 <option value="Intermedio (6 meses a 2 años)">Intermedio (6 meses a 2 años)</option>
-                <option value="Avanzado (Más de 2 años constante)">Avanzado (Más de 2 años constante)</option>
+                <option value="Avanzado (Más de 2 años constante)">Avanzado (más de 2 años)</option>
               </select>
             </div>
           </div>
         )}
 
-        {/* PASO 4: Hábitos y Disponibilidad */}
+        {/* PASO 4 */}
         {step === 4 && (
-          <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <h3 style={{ fontSize: "1.1rem", color: "var(--accent-blue)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-              <Moon size={18} /> 4. Sueño, Estrés & Disponibilidad
+          <div className="animate-fade-in stack">
+            <h3 style={{ fontSize: "1.05rem", color: "var(--accent-blue)", display: "flex", alignItems: "center", gap: "8px" }}>
+              <Moon size={18} /> 4. Descanso y disponibilidad
             </h3>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
-              <div className="form-group">
-                <label className="form-label">Horas de Sueño</label>
-                <select
-                  className="form-select"
-                  value={answers.sleepHours}
-                  onChange={(e) => setAnswers({ ...answers, sleepHours: e.target.value })}
-                >
+            <div className="grid-2">
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" htmlFor="q-sleep">Horas de sueño</label>
+                <select id="q-sleep" className="form-select" value={answers.sleepHours} onChange={(e) => update({ sleepHours: e.target.value })}>
                   <option value="Menos de 6 horas">Menos de 6 horas</option>
                   <option value="6 - 7 horas">6 - 7 horas</option>
                   <option value="7 - 8 horas">7 - 8 horas</option>
@@ -748,13 +535,9 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Nivel de Estrés</label>
-                <select
-                  className="form-select"
-                  value={answers.stressLevel}
-                  onChange={(e) => setAnswers({ ...answers, stressLevel: e.target.value })}
-                >
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" htmlFor="q-stress">Nivel de estrés</label>
+                <select id="q-stress" className="form-select" value={answers.stressLevel} onChange={(e) => update({ stressLevel: e.target.value })}>
                   <option value="Bajo">Bajo</option>
                   <option value="Moderado">Moderado</option>
                   <option value="Alto">Alto</option>
@@ -763,51 +546,42 @@ export const StudentOnboarding = ({ student, onCompleted }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Equipamiento Disponible</label>
-              <select
-                className="form-select"
-                value={answers.equipment}
-                onChange={(e) => setAnswers({ ...answers, equipment: e.target.value })}
-              >
+              <label className="form-label" htmlFor="q-equip">Equipamiento disponible</label>
+              <select id="q-equip" className="form-select" value={answers.equipment} onChange={(e) => update({ equipment: e.target.value })}>
                 <option value="Gimnasio comercial completo">Gimnasio comercial completo</option>
                 <option value="Gimnasio de edificio / básico">Gimnasio de edificio / básico</option>
                 <option value="En casa con mancuernas y bandas">En casa con mancuernas y bandas</option>
-                <option value="Calistenia / Peso corporal">Calistenia / Peso corporal</option>
+                <option value="Calistenia / Peso corporal">Calistenia / peso corporal</option>
               </select>
             </div>
 
             <div className="form-group">
-              <label className="form-label">Días Disponibles por Semana</label>
-              <select
-                className="form-select"
-                value={answers.availableDays}
-                onChange={(e) => setAnswers({ ...answers, availableDays: e.target.value })}
-              >
-                <option value="2 días por semana">2 días por semana</option>
-                <option value="3 días por semana">3 días por semana</option>
-                <option value="4 días por semana">4 días por semana</option>
-                <option value="5 días por semana">5 días por semana</option>
-                <option value="6 días por semana">6 días por semana</option>
+              <label className="form-label" htmlFor="q-days">Días disponibles por semana</label>
+              <select id="q-days" className="form-select" value={answers.availableDays} onChange={(e) => update({ availableDays: e.target.value })}>
+                {[2, 3, 4, 5, 6].map((d) => (
+                  <option key={d} value={`${d} días por semana`}>{d} días por semana</option>
+                ))}
               </select>
             </div>
           </div>
         )}
 
-        {/* Buttons */}
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", marginTop: "24px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", marginTop: "22px" }}>
           {step > 1 ? (
-            <button type="button" className="btn btn-secondary" onClick={() => setStep(step - 1)}>
-              Anterior
+            <button type="button" className="btn btn-secondary" onClick={() => { setStep(step - 1); setError(""); }}>
+              <ArrowLeft size={16} /> Anterior
             </button>
-          ) : <div />}
+          ) : (
+            <span />
+          )}
 
-          <button type="submit" className="btn btn-primary">
-            {step === 4 ? "Guardar Cuestionario" : "Siguiente"} <ArrowRight size={16} />
+          <button type="submit" className={`btn ${step === TOTAL_STEPS ? "btn-lime" : "btn-primary"}`} disabled={saving}>
+            {saving ? <Loader2 size={16} className="spin" /> : null}
+            {step === TOTAL_STEPS ? (saving ? "Guardando..." : "Guardar cuestionario") : "Siguiente"}
+            {!saving && <ArrowRight size={16} />}
           </button>
         </div>
-
       </form>
-
     </div>
   );
 };

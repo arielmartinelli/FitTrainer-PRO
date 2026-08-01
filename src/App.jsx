@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { AppleHeader } from "./components/common/AppleHeader";
 import { MobileBottomTabBar } from "./components/common/MobileBottomTabBar";
@@ -11,52 +11,79 @@ import { PaymentsClean } from "./components/trainer/PaymentsClean";
 import { RoutineBuilder } from "./components/trainer/RoutineBuilder";
 import { StudentCleanHome } from "./components/student/StudentCleanHome";
 import { CordobaContactBanner } from "./components/common/CordobaContactBanner";
+import { Zap } from "lucide-react";
+
+const SplashScreen = () => (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "12px",
+      background: "var(--bg-system)"
+    }}
+  >
+    <Zap size={54} color="var(--accent-blue)" strokeWidth={2.8} className="spin" style={{ animationDuration: "1.6s" }} />
+    <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 600 }}>Cargando FitTrainer PRO...</span>
+  </div>
+);
 
 const MainApp = () => {
-  const { currentUser, role } = useAuth();
+  const { currentUser, role, loading, students } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [isCreateStudentModalOpen, setIsCreateStudentModalOpen] = useState(false);
 
+  // Se guarda el id, no el objeto: así la ficha siempre muestra datos frescos
+  // después de registrar un pago o asignar una rutina.
+  const selectedStudent = selectedStudentId ? students.find((s) => s.id === selectedStudentId) : null;
+
+  // Al entrar, cada rol arranca en su pantalla natural.
+  useEffect(() => {
+    if (!currentUser) return;
+    if (role === "student") setActiveTab((t) => (t === "dashboard" ? "workout" : t));
+    if (role === "admin") setActiveTab("dashboard");
+  }, [currentUser, role]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab !== "student-detail") setSelectedStudentId(null);
+    if (tab !== "students") setIsCreateStudentModalOpen(false);
+  };
+
   const handleSelectStudent = (student) => {
-    setSelectedStudent(student);
+    setSelectedStudentId(student.id);
     setActiveTab("student-detail");
   };
 
+  // Evita el parpadeo de la pantalla de login mientras se restaura la sesión.
+  if (loading) return <SplashScreen />;
+
+  if (!currentUser) {
+    return (
+      <div className="app-container">
+        <CleanLoginScreen />
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
-      
-      {/* Banner de Contacto / Cotización en Córdoba (Se cierra a los 5s o con la cruz) */}
-      <CordobaContactBanner />
+      <AppleHeader activeTab={activeTab} setActiveTab={handleTabChange} />
 
-      {/* Apple Header */}
-      {currentUser && (
-        <AppleHeader
-          activeTab={activeTab}
-          setActiveTab={(tab) => {
-            setActiveTab(tab);
-            if (tab !== "student-detail") setSelectedStudent(null);
-          }}
-        />
-      )}
-
-      {/* Main Content Area */}
       <main className="main-content">
-        
-        {/* SI NO HAY USUARIO LOGUEADO -> PANTALLA LOGIN LIMPIA */}
-        {!currentUser && <CleanLoginScreen />}
+        {/* ADMINISTRADOR */}
+        {role === "admin" && <MasterDashboard />}
 
-        {/* 👑 VISTA DEL ADMINISTRADOR */}
-        {role === "admin" && currentUser && (
-          <MasterDashboard />
-        )}
-
-        {/* 👨‍🏫 VISTA DEL PROFESOR / ENTRENADOR */}
-        {role === "trainer" && currentUser && (
+        {/* PROFESOR */}
+        {role === "trainer" && (
           <>
-            {(activeTab === "dashboard" || activeTab === "workout" || activeTab === "onboarding") && (
+            {activeTab === "dashboard" && (
               <TrainerCleanDashboard
-                onNavigateTab={(tab) => setActiveTab(tab)}
+                onNavigateTab={handleTabChange}
                 onSelectStudent={handleSelectStudent}
                 onOpenNewStudent={() => {
                   setActiveTab("students");
@@ -77,43 +104,39 @@ const MainApp = () => {
               <StudentDetailClean
                 student={selectedStudent}
                 onBack={() => {
-                  setSelectedStudent(null);
+                  setSelectedStudentId(null);
                   setActiveTab("students");
                 }}
               />
             )}
 
-            {activeTab === "payments" && (
-              <PaymentsClean onSelectStudent={handleSelectStudent} />
+            {/* Si el alumno seleccionado se borró en otro dispositivo */}
+            {activeTab === "student-detail" && !selectedStudent && (
+              <div className="glass-panel" style={{ padding: "32px", textAlign: "center", color: "var(--text-secondary)" }}>
+                Ese alumno ya no está disponible.
+                <div style={{ marginTop: "12px" }}>
+                  <button className="btn btn-primary" onClick={() => handleTabChange("students")}>
+                    Volver a mis alumnos
+                  </button>
+                </div>
+              </div>
             )}
 
-            {activeTab === "routines" && (
-              <RoutineBuilder />
-            )}
+            {activeTab === "payments" && <PaymentsClean onSelectStudent={handleSelectStudent} />}
+            {activeTab === "routines" && <RoutineBuilder />}
           </>
         )}
 
-        {/* 🏋️ VISTA DEL ALUMNO */}
-        {role === "student" && currentUser && (
-          <StudentCleanHome
-            student={currentUser}
-            activeTab={activeTab === "onboarding" ? "onboarding" : "workout"}
-            setActiveTab={setActiveTab}
-          />
+        {/* ALUMNO */}
+        {role === "student" && (
+          <StudentCleanHome student={currentUser} activeTab={activeTab} setActiveTab={handleTabChange} />
         )}
-
       </main>
 
-      {/* Barra de Navegación Inferior Móvil (Bottom Tab Bar estilo iPhone) */}
-      {currentUser && (
-        <MobileBottomTabBar
-          activeTab={activeTab}
-          setActiveTab={(tab) => {
-            setActiveTab(tab);
-            if (tab !== "student-detail") setSelectedStudent(null);
-          }}
-        />
-      )}
+      <MobileBottomTabBar activeTab={activeTab} setActiveTab={handleTabChange} />
+
+      {/* Aviso de contacto: se muestra una sola vez por dispositivo */}
+      <CordobaContactBanner />
     </div>
   );
 };

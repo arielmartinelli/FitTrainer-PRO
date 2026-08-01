@@ -1,65 +1,116 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { Portal } from "./Portal";
 
 export const Modal = ({ isOpen, onClose, title, children, maxWidth = "560px" }) => {
+  const panelRef = useRef(null);
+
+  // `onClose` suele venir como función flecha inline, así que cambia de identidad en
+  // cada render. Guardarla en un ref permite que el efecto dependa SOLO de `isOpen`.
+  // Si no, el efecto se re-ejecutaba con cada tecla y el focus() del panel le robaba
+  // el foco al input: se escribía una letra y el campo se deseleccionaba.
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
     const handleKeyDown = (e) => {
-      if (e.key === "Escape" && isOpen) onClose();
+      if (e.key === "Escape") onCloseRef.current?.();
     };
+
+    // Bloquea el scroll del fondo: en celular, al abrir un modal la página de atrás
+    // seguía desplazándose y se perdía la posición.
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+
+    // El foco va al panel una sola vez, al abrir, y de ahí en más queda libre
+    // para que el usuario escriba.
+    panelRef.current?.focus();
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.55)",
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 2500,
-        padding: "16px"
-      }}
-      onClick={onClose}
-    >
+    <Portal>
       <div
-        className="glass-panel animate-fade-in"
+        role="presentation"
+        onClick={onClose}
         style={{
-          width: "100%",
-          maxWidth: maxWidth,
-          maxHeight: "90vh",
+          position: "fixed",
+          inset: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          // Si el contenido es más alto que la pantalla, se scrollea el fondo
+          // y el panel sigue quedando centrado.
           overflowY: "auto",
-          padding: "24px",
-          position: "relative",
-          margin: "auto",
-          borderRadius: "20px",
-          background: "#FFFFFF",
-          boxShadow: "0 24px 60px rgba(0, 0, 0, 0.25)",
-          border: "1px solid var(--border-subtle)"
+          zIndex: 2500,
+          padding: "16px",
+          paddingTop: "calc(16px + var(--safe-top))",
+          paddingBottom: "calc(16px + var(--safe-bottom))"
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "12px" }}>
-          <h3 style={{ fontSize: "1.25rem", margin: 0, color: "var(--text-primary)", fontWeight: 700 }}>{title}</h3>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={onClose}
-            style={{ borderRadius: "50%", padding: "6px", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}
+        <div
+          ref={panelRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label={typeof title === "string" ? title : undefined}
+          className="glass-panel animate-fade-in"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            width: "100%",
+            maxWidth,
+            maxHeight: "min(88dvh, 900px)",
+            overflowY: "auto",
+            WebkitOverflowScrolling: "touch",
+            padding: "20px",
+            position: "relative",
+            borderRadius: "20px",
+            background: "var(--bg-card)",
+            boxShadow: "0 24px 60px rgba(0, 0, 0, 0.25)",
+            outline: "none",
+            // Centrado real en ambos ejes, incluso con contenido corto.
+            margin: "auto"
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+              marginBottom: "16px",
+              borderBottom: "1px solid var(--border-subtle)",
+              paddingBottom: "12px",
+              position: "sticky",
+              top: "-20px",
+              background: "var(--bg-card)",
+              paddingTop: "4px",
+              zIndex: 1
+            }}
           >
-            <X size={18} />
-          </button>
+            <h3 style={{ fontSize: "1.15rem", margin: 0, fontWeight: 700, minWidth: 0 }}>{title}</h3>
+            <button className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Cerrar" style={{ flexShrink: 0 }}>
+              <X size={18} />
+            </button>
+          </div>
+
+          {children}
         </div>
-        {children}
       </div>
-    </div>
+    </Portal>
   );
 };

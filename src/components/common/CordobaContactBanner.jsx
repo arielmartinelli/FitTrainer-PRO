@@ -1,53 +1,69 @@
 import React, { useState, useEffect } from "react";
 import { Send, X, MapPin, MessageCircle } from "lucide-react";
 
+const DISMISSED_KEY = "fittrainer_contact_banner_dismissed_v1";
+
+// Número de contacto configurable (.env → VITE_CONTACT_WHATSAPP=5493511234567).
+// Antes el botón abría wa.me SIN número, así que no servía para nada.
+const CONTACT_PHONE = (import.meta.env.VITE_CONTACT_WHATSAPP || "").replace(/[^0-9]/g, "");
+
 export const CordobaContactBanner = () => {
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Desaparece automáticamente a los 5 segundos
-    const timer = setTimeout(() => {
-      setIsVisible(false);
-    }, 5000);
+    // Sin número configurado no tiene sentido mostrarlo.
+    if (!CONTACT_PHONE) return;
+    // Se muestra una sola vez por dispositivo, no en cada carga.
+    if (localStorage.getItem(DISMISSED_KEY)) return;
 
-    return () => clearTimeout(timer);
+    const show = setTimeout(() => setIsVisible(true), 1200);
+    return () => clearTimeout(show);
   }, []);
+
+  const dismiss = () => {
+    setIsVisible(false);
+    localStorage.setItem(DISMISSED_KEY, "1");
+  };
 
   if (!isVisible) return null;
 
   const handleOpenWhatsApp = () => {
-    const message = encodeURIComponent("¡Hola! Quisiera consultar y cotizar un plan de entrenamiento presencial o personalizado en Córdoba.");
-    window.open(`https://wa.me/?text=${message}`, "_blank");
+    const message = encodeURIComponent(
+      "¡Hola! Quisiera consultar y cotizar un plan de entrenamiento personalizado."
+    );
+    window.open(`https://wa.me/${CONTACT_PHONE}?text=${message}`, "_blank", "noopener");
+    dismiss();
   };
 
   return (
     <div
-      className="animate-fade-in"
+      className="animate-slide-up"
+      role="complementary"
       style={{
         position: "fixed",
-        bottom: "80px",
-        right: "16px",
-        left: "16px",
+        // Se apoya encima de la barra inferior en vez de taparla.
+        bottom: "calc(var(--tabbar-height) + 12px)",
+        right: "12px",
+        left: "12px",
         maxWidth: "380px",
         margin: "0 auto",
         background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
         color: "#FFFFFF",
-        padding: "14px 16px",
+        padding: "12px 14px",
         borderRadius: "16px",
-        boxShadow: "0 10px 30px rgba(37, 211, 102, 0.4)",
-        zIndex: 2500,
+        boxShadow: "0 10px 30px rgba(37, 211, 102, 0.35)",
+        zIndex: 800,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        gap: "12px",
-        transition: "opacity 0.3s ease, transform 0.3s ease"
+        gap: "10px"
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: 0 }}>
         <div
           style={{
-            width: "38px",
-            height: "38px",
+            width: "36px",
+            height: "36px",
             borderRadius: "50%",
             background: "rgba(255, 255, 255, 0.2)",
             display: "flex",
@@ -56,60 +72,46 @@ export const CordobaContactBanner = () => {
             flexShrink: 0
           }}
         >
-          <MessageCircle size={20} color="#FFFFFF" />
+          <MessageCircle size={19} color="#FFFFFF" />
         </div>
 
-        <div>
-          <div style={{ fontSize: "0.825rem", fontWeight: 800, display: "flex", alignItems: "center", gap: "4px" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: "0.8rem", fontWeight: 800, display: "flex", alignItems: "center", gap: "4px" }}>
             <MapPin size={13} /> Atención presencial en Córdoba
           </div>
-          <p style={{ fontSize: "0.75rem", opacity: 0.95, margin: "2px 0 0 0", lineHeight: "1.2" }}>
-            ¿Tienes dudas o deseas cotizar tu plan personal?
+          <p style={{ fontSize: "0.73rem", opacity: 0.95, margin: "2px 0 0 0", lineHeight: 1.25 }}>
+            ¿Querés cotizar tu plan personal?
           </p>
         </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-        {/* Botón Acción WhatsApp */}
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
         <button
           onClick={handleOpenWhatsApp}
-          style={{
-            border: "none",
-            background: "#FFFFFF",
-            color: "#128C7E",
-            fontWeight: 700,
-            fontSize: "0.78rem",
-            padding: "8px 12px",
-            borderRadius: "20px",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
-          }}
+          className="btn btn-sm"
+          style={{ background: "#FFFFFF", color: "#128C7E", fontWeight: 700, borderRadius: "20px" }}
         >
-          <Send size={12} /> Cotizar
+          <Send size={13} /> Cotizar
         </button>
 
-        {/* Botón de Cierre (Cruz) */}
         <button
-          onClick={() => setIsVisible(false)}
-          title="Cerrar aviso"
+          onClick={dismiss}
+          aria-label="Cerrar aviso"
           style={{
             border: "none",
-            background: "rgba(0, 0, 0, 0.15)",
+            background: "rgba(0, 0, 0, 0.18)",
             color: "#FFFFFF",
-            width: "26px",
-            height: "26px",
+            width: "30px",
+            height: "30px",
             borderRadius: "50%",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
-            transition: "background 0.2s ease"
+            flexShrink: 0
           }}
         >
-          <X size={14} />
+          <X size={15} />
         </button>
       </div>
     </div>

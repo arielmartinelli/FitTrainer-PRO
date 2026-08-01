@@ -1,34 +1,43 @@
 :root {
   --bg-system: #F2F2F7;
   --bg-card: #FFFFFF;
+  --bg-subtle: #F2F2F7;
   --bg-card-hover: #F8F9FA;
   --bg-glass: rgba(255, 255, 255, 0.85);
-  
+
   --border-subtle: rgba(60, 60, 67, 0.12);
   --border-active: rgba(0, 122, 255, 0.4);
-  
+
   --accent-blue: #007AFF;
   --accent-blue-glow: rgba(0, 122, 255, 0.15);
   --accent-green: #34C759;
   --accent-green-glow: rgba(52, 199, 89, 0.15);
   --accent-orange: #FF9500;
   --accent-red: #FF3B30;
+  --accent-pink: #FF2D55;
   --accent-indigo: #5856D6;
-  
+
   --text-primary: #1C1C1E;
   --text-secondary: #8E8E93;
   --text-tertiary: #C7C7CC;
-  
+
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius-lg: 22px;
   --radius-full: 9999px;
-  
+
   --shadow-ios: 0 4px 18px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
   --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.08);
-  
+
   --transition-fast: 0.16s ease;
   --transition-normal: 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Áreas seguras del dispositivo (notch / barra gestual del iPhone) */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Alto real de la barra inferior en móvil, para reservar espacio al contenido */
+  --tabbar-height: calc(62px + var(--safe-bottom));
 }
 
 * {
@@ -38,11 +47,17 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+html {
+  /* Evita el salto de layout cuando aparece/desaparece la barra de scroll */
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', 'SF Pro Display', sans-serif;
   background-color: var(--bg-system);
   color: var(--text-primary);
   min-height: 100vh;
+  min-height: 100dvh;
   line-height: 1.45;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
@@ -64,60 +79,184 @@ h2, h3, h4, h5, h6 {
   color: var(--text-primary);
 }
 
-/* Transformación de Vista Móvil */
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+
+.app-container {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-system);
+}
+
+.main-content {
+  flex: 1;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px 16px 80px 16px;
+}
+
+/* ============================================================
+   UTILIDADES RESPONSIVAS
+   Reemplazan los grids fijos ("1fr 1fr 1fr") que se aplastaban en el celular.
+   ============================================================ */
+
+.grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 14px;
+}
+
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 14px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: 10px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.action-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Barra con scroll horizontal + degradado que avisa que hay más contenido */
+.scroll-x {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+
+.scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-x > * {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+.scroll-x-wrap {
+  position: relative;
+}
+
+.scroll-x-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 4px;
+  width: 28px;
+  pointer-events: none;
+  background: linear-gradient(to right, rgba(242, 242, 247, 0), var(--bg-system));
+}
+
+/* ============================================================
+   VISIBILIDAD POR DISPOSITIVO
+   ============================================================ */
+
+@media (min-width: 769px) {
+  .mobile-only { display: none !important; }
+}
+
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+}
+
+/* ============================================================
+   AJUSTES MÓVIL
+   ============================================================ */
+
 @media (max-width: 768px) {
   h1 {
-    font-size: 2.25rem !important;
-    font-weight: 900 !important;
-    letter-spacing: -0.04em !important;
-    line-height: 1.15 !important;
+    /* Antes era 2.25rem, MÁS grande que en desktop: se comía la pantalla */
+    font-size: 1.65rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
   }
 
-  h2 {
-    font-size: 1.55rem !important;
-    font-weight: 800 !important;
-  }
+  h2 { font-size: 1.3rem; }
+  h3 { font-size: 1.1rem; }
 
   .main-content {
-    padding: 12px 10px 105px 10px !important;
+    /* Reserva el alto real de la barra inferior + el área segura del iPhone */
+    padding: 14px 12px calc(var(--tabbar-height) + 20px) 12px;
   }
 
   .glass-panel {
-    border-radius: 18px !important;
-    padding: 18px 14px !important;
+    border-radius: 16px;
   }
+
+  /* Los grids de 2 y 3 columnas pasan a una sola en pantallas chicas */
+  .grid-3 { grid-template-columns: minmax(0, 1fr); }
+
+  .grid-2 { gap: 10px; }
+
+  /* Los botones que van solos ocupan todo el ancho */
+  .action-row > .btn { flex: 1 1 auto; }
+
+  .scroll-x-wrap::after { width: 20px; }
 }
 
-/* Responsive visibility utilities */
-@media (min-width: 769px) {
-  .mobile-only {
-    display: none !important;
-  }
+@media (max-width: 420px) {
+  .grid-2 { grid-template-columns: minmax(0, 1fr); }
+  .grid-cards { grid-template-columns: minmax(0, 1fr); }
+  .grid-auto { grid-template-columns: minmax(0, 1fr); }
 }
 
-@media (max-width: 768px) {
-  .desktop-only {
-    display: none !important;
-  }
-}
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
 
-/* Custom iOS Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(142, 142, 147, 0.3);
-  border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(142, 142, 147, 0.6);
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(142, 142, 147, 0.3); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(142, 142, 147, 0.6); }
 
-/* Apple iOS Glass Panel */
+/* ============================================================
+   COMPONENTES
+   ============================================================ */
+
 .glass-panel {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
@@ -131,6 +270,13 @@ h2, h3, h4, h5, h6 {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border-subtle);
+  padding-top: var(--safe-top);
+}
+
+.subtle-box {
+  background: var(--bg-subtle);
+  border-radius: 12px;
+  padding: 12px 14px;
 }
 
 /* Badges */
@@ -143,33 +289,16 @@ h2, h3, h4, h5, h6 {
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
-.badge-success {
-  background: rgba(52, 199, 89, 0.12);
-  color: #248A3D;
-  border: 1px solid rgba(52, 199, 89, 0.25);
-}
+.badge-success { background: rgba(52, 199, 89, 0.12); color: #248A3D; border: 1px solid rgba(52, 199, 89, 0.25); }
+.badge-warning { background: rgba(255, 149, 0, 0.12); color: #C27000; border: 1px solid rgba(255, 149, 0, 0.25); }
+.badge-danger  { background: rgba(255, 59, 48, 0.12); color: #D70015; border: 1px solid rgba(255, 59, 48, 0.25); }
+.badge-blue    { background: rgba(0, 122, 255, 0.1); color: var(--accent-blue); border: 1px solid rgba(0, 122, 255, 0.2); }
+.badge-neutral { background: rgba(142,142,147,0.12); color: var(--text-secondary); border: 1px solid rgba(142,142,147,0.2); }
 
-.badge-warning {
-  background: rgba(255, 149, 0, 0.12);
-  color: #C27000;
-  border: 1px solid rgba(255, 149, 0, 0.25);
-}
-
-.badge-danger {
-  background: rgba(255, 59, 48, 0.12);
-  color: #D70015;
-  border: 1px solid rgba(255, 59, 48, 0.25);
-}
-
-.badge-blue {
-  background: rgba(0, 122, 255, 0.1);
-  color: var(--accent-blue);
-  border: 1px solid rgba(0, 122, 255, 0.2);
-}
-
-/* Apple Buttons */
+/* Botones */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -186,71 +315,55 @@ h2, h3, h4, h5, h6 {
   outline: none;
   text-decoration: none;
   white-space: nowrap;
+  min-height: 40px;
 }
 
-.btn-primary {
-  background: var(--accent-blue);
-  color: #FFFFFF;
-  box-shadow: 0 4px 12px var(--accent-blue-glow);
+.btn:disabled { cursor: not-allowed; }
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
 }
 
-.btn-primary:hover {
-  background: #0062CC;
-  transform: translateY(-1px);
+.btn-primary { background: var(--accent-blue); color: #FFFFFF; box-shadow: 0 4px 12px var(--accent-blue-glow); }
+.btn-primary:hover { background: #0062CC; }
+
+.btn-lime { background: var(--accent-green); color: #FFFFFF; box-shadow: 0 4px 12px var(--accent-green-glow); }
+.btn-lime:hover { background: #28A745; }
+
+.btn-secondary { background: #E5E5EA; color: var(--text-primary); }
+.btn-secondary:hover { background: #D1D1D6; }
+
+.btn-ghost { background: transparent; color: var(--text-secondary); }
+.btn-ghost:hover { color: var(--text-primary); background: rgba(0, 0, 0, 0.04); }
+
+.btn-danger { background: rgba(255, 59, 48, 0.1); color: var(--accent-red); }
+.btn-danger:hover { background: rgba(255, 59, 48, 0.2); }
+
+.btn-sm { padding: 7px 12px; font-size: 0.8rem; border-radius: 8px; min-height: 36px; }
+.btn-lg { padding: 14px 24px; font-size: 1rem; border-radius: var(--radius-md); min-height: 50px; }
+
+.btn-icon {
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
-.btn-lime {
-  background: var(--accent-green);
-  color: #FFFFFF;
-  box-shadow: 0 4px 12px var(--accent-green-glow);
+/* En móvil sólo el hover deja de tener sentido y el tamaño mínimo táctil sube a 44px */
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover, .btn-lime:hover { transform: translateY(-1px); }
 }
 
-.btn-lime:hover {
-  background: #28A745;
-  transform: translateY(-1px);
+@media (max-width: 768px) {
+  .btn { min-height: 44px; }
+  .btn-sm { min-height: 40px; padding: 8px 12px; }
+  .btn-icon { width: 44px; height: 44px; min-height: 44px; }
 }
 
-.btn-secondary {
-  background: #E5E5EA;
-  color: var(--text-primary);
-}
-
-.btn-secondary:hover {
-  background: #D1D1D6;
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--text-secondary);
-}
-
-.btn-ghost:hover {
-  color: var(--text-primary);
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.btn-danger {
-  background: rgba(255, 59, 48, 0.1);
-  color: var(--accent-red);
-}
-
-.btn-danger:hover {
-  background: rgba(255, 59, 48, 0.2);
-}
-
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 0.8rem;
-  border-radius: 8px;
-}
-
-.btn-lg {
-  padding: 14px 24px;
-  font-size: 1rem;
-  border-radius: var(--radius-md);
-}
-
-/* Forms */
+/* Formularios */
 .form-group {
   display: flex;
   flex-direction: column;
@@ -269,7 +382,7 @@ h2, h3, h4, h5, h6 {
 .form-input, .form-select, .form-textarea {
   width: 100%;
   padding: 11px 14px;
-  background: #F2F2F7;
+  background: var(--bg-subtle);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
@@ -280,38 +393,256 @@ h2, h3, h4, h5, h6 {
 }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
-  background: #FFFFFF;
+  background: var(--bg-card);
   border-color: var(--accent-blue);
   box-shadow: 0 0 0 3px var(--accent-blue-glow);
 }
 
-.form-textarea {
-  min-height: 85px;
-  resize: vertical;
+.form-textarea { min-height: 85px; resize: vertical; }
+
+/* iOS hace zoom automático en cualquier input con fuente menor a 16px.
+   Con esto el celular deja de saltar cada vez que se toca un campo. */
+@media (max-width: 768px) {
+  .form-input, .form-select, .form-textarea {
+    font-size: 16px;
+    padding: 12px 14px;
+  }
 }
 
-/* Layout */
-.app-container {
-  min-height: 100vh;
+/* Buscadores: antes eran transparentes y sin borde, no se veía dónde tocar */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.search-box .form-input {
+  background: transparent;
+  border: none;
+  padding-left: 0;
+}
+
+.search-box .form-input:focus {
+  box-shadow: none;
+  background: transparent;
+}
+
+.search-box:focus-within {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px var(--accent-blue-glow);
+}
+
+.input-icon-left {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.input-icon-right-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+}
+
+/* Control segmentado (iOS style) */
+.segmented {
+  display: flex;
+  background: #E5E5EA;
+  padding: 3px;
+  border-radius: 10px;
+  gap: 2px;
+}
+
+.segmented-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: var(--bg-subtle);
+  padding: 4px;
+  border-radius: 12px;
+}
+
+.seg-option {
+  border: none;
+  padding: 11px 12px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: transparent;
+  color: var(--text-secondary);
+  min-height: 44px;
+}
+
+.seg-option[data-active="true"] { color: #FFFFFF; }
+.seg-option[data-tone="male"][data-active="true"] { background: var(--accent-blue); box-shadow: 0 2px 8px rgba(0,122,255,0.3); }
+.seg-option[data-tone="female"][data-active="true"] { background: var(--accent-pink); box-shadow: 0 2px 8px rgba(255,45,85,0.3); }
+
+/* Chips de selección rápida */
+.chip {
+  border: none;
+  padding: 8px 14px;
+  border-radius: 16px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #E5E5EA;
+  color: var(--text-primary);
+  min-height: 36px;
+  transition: all var(--transition-fast);
+}
+
+.chip[data-active="true"] { background: var(--accent-blue); color: #FFFFFF; }
+
+/* Pantalla de login */
+.login-screen {
+  position: fixed;
+  inset: 0;
+  /* 100dvh en vez de 100vh: en iOS Safari con el teclado abierto el botón
+     de "Iniciar Sesión" quedaba fuera de pantalla */
+  height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-system);
+  padding: calc(16px + var(--safe-top)) 16px calc(16px + var(--safe-bottom)) 16px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px 24px;
+  background: var(--bg-card);
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+  margin: auto;
+}
+
+@media (max-width: 380px) {
+  .login-card { padding: 24px 18px; }
+}
+
+/* Barra de navegación inferior */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 900;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+  /* Respeta la barra gestual del iPhone */
+  padding: 6px 4px calc(6px + var(--safe-bottom)) 4px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.tab-item {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-system);
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 4px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  min-height: 50px;
+  border-radius: 10px;
+  transition: color var(--transition-fast);
 }
 
-.main-content {
-  flex: 1;
-  max-width: 1100px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 20px 16px 80px 16px;
+.tab-item[data-active="true"] { font-weight: 700; }
+.tab-item span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* Animations */
+/* Cronómetro de descanso: barra inferior en móvil, panel flotante en desktop */
+.rest-timer-mobile {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--tabbar-height);
+  z-index: 1200;
+  background: rgba(28, 28, 30, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255,255,255,0.15);
+  color: #FFFFFF;
+  padding: 12px 14px;
+  box-shadow: 0 -8px 24px rgba(0,0,0,0.25);
+}
+
+/* Animaciones */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in { animation: fadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-up { animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.spin { animation: spin 0.9s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   IMPRESIÓN
+   Antes window.print() sacaba la app entera con el modal encima.
+   ============================================================ */
+
+@media print {
+  .glass-header,
+  .tab-bar,
+  .no-print,
+  .rest-timer-mobile { display: none !important; }
+
+  body { background: #FFFFFF; }
+  .main-content { padding: 0; max-width: none; }
+  .print-area { box-shadow: none !important; border: none !important; }
 }
