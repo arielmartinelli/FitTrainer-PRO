@@ -21,7 +21,7 @@ import {
 import { generateTempPassword } from "../../services/cryptoService";
 import { StudentAvatar } from "../common/StudentAvatar";
 import { Modal } from "../common/Modal";
-import { Users, UserCheck, UserX, Plus, Search, Key, Edit, Trash2, ShieldAlert, Loader2, Copy } from "lucide-react";
+import { Users, UserCheck, UserX, Plus, Search, Key, Edit, Trash2, ShieldAlert, Loader2, Copy, Send, CheckCircle2 } from "lucide-react";
 
 const emptyTrainer = () => ({
   id: "",
@@ -155,6 +155,14 @@ export const MasterDashboard = () => {
       } else {
         // Alta: crea la cuenta de Auth y usa su uid como id de la fila.
         await provisionTrainer(payload);
+        // La contraseña no se puede volver a consultar: se muestra para entregarla.
+        setGeneratedPassword({
+          tipo: "trainer",
+          name: payload.name,
+          user: payload.email,
+          password: trainerForm.password,
+          phone: payload.phone
+        });
       }
       setTrainerModal(null);
     });
@@ -175,7 +183,7 @@ export const MasterDashboard = () => {
         // En modo nube la contraseña vive en Supabase Auth, no en la tabla.
         await resetOtherUserPassword({ userId: trainer.id, newPassword: password });
         if (!isCloudMode()) await saveTrainer({ ...trainer, password });
-        setGeneratedPassword({ name: trainer.name, user: trainer.email, password });
+        setGeneratedPassword({ tipo: "trainer", name: trainer.name, user: trainer.email, password, phone: trainer.phone });
       } catch (err) {
         setFormError(err.message);
         alert(err.message);
@@ -214,6 +222,13 @@ export const MasterDashboard = () => {
         await saveStudent({ ...payload, password: studentForm.password || editing.password });
       } else {
         await provisionStudent(payload);
+        setGeneratedPassword({
+          tipo: "student",
+          name: payload.name,
+          user: payload.username,
+          password: studentForm.password,
+          phone: payload.phone
+        });
       }
       setStudentModal(null);
     });
@@ -231,7 +246,7 @@ export const MasterDashboard = () => {
       try {
         await resetOtherUserPassword({ userId: student.id, newPassword: password });
         if (!isCloudMode()) await saveStudent({ ...student, password });
-        setGeneratedPassword({ name: student.name, user: student.username, password });
+        setGeneratedPassword({ tipo: "student", name: student.name, user: student.username, password, phone: student.phone });
       } catch (err) {
         setFormError(err.message);
         alert(err.message);
@@ -257,6 +272,32 @@ export const MasterDashboard = () => {
         setFormError(err.message);
       }
     });
+  };
+
+  /* ---------- Entrega de accesos ---------- */
+
+  const textoAccesos = (acceso) =>
+    `Hola ${acceso.name}, estos son tus datos para entrar a FitTrainer PRO:\n\n` +
+    `${acceso.tipo === "trainer" ? "Email" : "Usuario"}: ${acceso.user}\n` +
+    `Contraseña: ${acceso.password}`;
+
+  const copiarAccesos = async () => {
+    try {
+      await navigator.clipboard.writeText(textoAccesos(generatedPassword));
+      alert("Accesos copiados.");
+    } catch {
+      alert("No se pudo copiar automáticamente. Copialos a mano desde la pantalla.");
+    }
+  };
+
+  const enviarAccesos = () => {
+    const phone = (generatedPassword.phone || "").replace(/[^0-9]/g, "");
+    if (!phone) {
+      alert("No hay teléfono cargado para esta persona. Agregalo con el botón Editar y volvé a intentar.");
+      return;
+    }
+    const texto = encodeURIComponent(textoAccesos(generatedPassword));
+    window.open(`https://wa.me/${phone}?text=${texto}`, "_blank", "noopener");
   };
 
   /* ---------- Filtros ---------- */
@@ -297,33 +338,42 @@ export const MasterDashboard = () => {
         </div>
       </div>
 
-      {/* Contraseña generada */}
+      {/* Accesos recién generados: al crear una cuenta o al resetear la contraseña */}
       {generatedPassword && (
         <div className="glass-panel animate-fade-in" style={{ padding: "16px", border: "1px solid var(--accent-green)" }}>
-          <div className="row-between" style={{ marginBottom: "8px" }}>
-            <strong style={{ fontSize: "0.95rem" }}>Nueva contraseña de {generatedPassword.name}</strong>
+          <div className="row-between" style={{ marginBottom: "10px" }}>
+            <strong style={{ fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "8px" }}>
+              <CheckCircle2 size={18} color="var(--accent-green)" />
+              Accesos de {generatedPassword.name}
+            </strong>
             <button className="btn btn-ghost btn-sm" onClick={() => setGeneratedPassword(null)}>Cerrar</button>
           </div>
-          <div className="subtle-box" style={{ background: "rgba(52,199,89,0.1)" }}>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Usuario: <strong>{generatedPassword.user}</strong></div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--accent-green)", wordBreak: "break-all" }}>
+
+          <div className="subtle-box" style={{ background: "rgba(52,199,89,0.1)", border: "1px solid rgba(52,199,89,0.3)" }}>
+            <div style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 700 }}>
+              {generatedPassword.tipo === "trainer" ? "EMAIL" : "USUARIO"}
+            </div>
+            <div style={{ fontWeight: 800, color: "var(--accent-blue)", wordBreak: "break-all", marginBottom: "8px" }}>
+              {generatedPassword.user}
+            </div>
+
+            <div style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 700 }}>CONTRASEÑA</div>
+            <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--accent-green)", wordBreak: "break-all" }}>
               {generatedPassword.password}
             </div>
           </div>
-          <button
-            className="btn btn-secondary btn-sm"
-            style={{ marginTop: "10px" }}
-            onClick={() =>
-              navigator.clipboard
-                ?.writeText(`Usuario: ${generatedPassword.user}\nContraseña: ${generatedPassword.password}`)
-                .then(() => alert("📋 Copiado."))
-                .catch(() => alert("Copiala a mano desde la pantalla."))
-            }
-          >
-            <Copy size={14} /> Copiar
-          </button>
-          <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "8px" }}>
-            Anotala ahora: por seguridad se guarda cifrada y no se puede volver a ver.
+
+          <div className="action-row" style={{ marginTop: "12px" }}>
+            <button className="btn btn-lime btn-sm" style={{ flex: 1 }} onClick={enviarAccesos}>
+              <Send size={15} /> Enviar accesos
+            </button>
+            <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={copiarAccesos}>
+              <Copy size={15} /> Copiar accesos
+            </button>
+          </div>
+
+          <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "10px" }}>
+            Anotá o enviá la contraseña ahora: se guarda cifrada y no se puede volver a ver.
           </p>
         </div>
       )}
