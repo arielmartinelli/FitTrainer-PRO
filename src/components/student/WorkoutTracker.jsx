@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { logCompletedWorkout } from "../../services/storageService";
 import { useAuth } from "../../context/AuthContext";
 import { RestTimer } from "./RestTimer";
+import { RoutineFileViewer } from "../common/RoutineFileViewer";
 import { getPersonalRecord, parseWeight } from "../../services/progressService";
 import {
   Dumbbell,
@@ -204,6 +205,25 @@ export const WorkoutTracker = ({ student }) => {
       setSaving(false);
     }
   };
+
+  /**
+   * Rutina subida como archivo: el profesor cargó su plan como foto, PDF o
+   * planilla. No hay series que tildar, pero el alumno igual puede registrar
+   * que entrenó para que la adherencia y el historial sigan funcionando.
+   */
+  if (routine?.kind === "file") {
+    return (
+      <RutinaEnArchivo
+        routine={routine}
+        student={student}
+        onRegistrado={(mensaje) => {
+          setSessionCompletedMsg(mensaje);
+          setTimeout(() => setSessionCompletedMsg(""), 5000);
+        }}
+        mensaje={sessionCompletedMsg}
+      />
+    );
+  }
 
   if (!routine || !routine.days || routine.days.length === 0) {
     return (
@@ -511,6 +531,101 @@ export const WorkoutTracker = ({ student }) => {
       {restTimer && (
         <RestTimer key={restTimer.nonce} defaultSeconds={restTimer.seconds} onClose={() => setRestTimer(null)} />
       )}
+    </div>
+  );
+};
+
+/**
+ * Vista para las rutinas que el profesor subió como archivo.
+ *
+ * No hay series que tildar, pero sí conviene que el alumno pueda dejar
+ * registrado que entrenó: así el profe sigue viendo la adherencia y el alumno
+ * mantiene su historial en la pestaña Progreso.
+ */
+const RutinaEnArchivo = ({ routine, student, onRegistrado, mensaje }) => {
+  const { refreshData } = useAuth();
+  const [notas, setNotas] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  const registrarEntrenamiento = async () => {
+    if (guardando) return;
+    setGuardando(true);
+    try {
+      await logCompletedWorkout(student.id, {
+        dayName: routine.title,
+        weekNumber: 1,
+        durationMinutes: 60,
+        studentNotes: notas.trim(),
+        logs: []
+      });
+      await refreshData();
+      setNotas("");
+      onRegistrado?.("Entrenamiento registrado. ¡Bien ahí!");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <div className="animate-fade-in stack">
+      {mensaje && (
+        <div
+          style={{
+            background: "var(--accent-green)",
+            color: "#FFFFFF",
+            padding: "16px",
+            borderRadius: "var(--radius-md)",
+            fontWeight: 700,
+            textAlign: "center",
+            fontSize: "0.9rem",
+            boxShadow: "0 6px 20px rgba(52,199,89,0.3)"
+          }}
+        >
+          {mensaje}
+        </div>
+      )}
+
+      <div className="glass-panel" style={{ padding: "18px", borderLeft: "4px solid var(--accent-green)" }}>
+        <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          Programa de {routine.durationWeeks || 6} semanas · asignado por tu entrenador
+        </div>
+        <h2 style={{ fontSize: "1.25rem", margin: "3px 0" }}>{routine.title}</h2>
+        {routine.description && <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>{routine.description}</p>}
+      </div>
+
+      <div className="glass-panel" style={{ padding: "16px" }}>
+        <RoutineFileViewer routine={routine} />
+      </div>
+
+      <div className="glass-panel" style={{ padding: "16px" }}>
+        <h3 style={{ fontSize: "1rem", marginBottom: "10px" }}>¿Entrenaste hoy?</h3>
+
+        <div className="form-group">
+          <label className="form-label" htmlFor="nota-archivo">Cómo te fue (opcional)</label>
+          <textarea
+            id="nota-archivo"
+            className="form-textarea"
+            style={{ minHeight: "70px" }}
+            placeholder="Ej: subí 5 kg en press de banca, molestia leve en el hombro..."
+            value={notas}
+            onChange={(e) => setNotas(e.target.value)}
+          />
+        </div>
+
+        <button
+          className="btn btn-lime btn-lg"
+          style={{ width: "100%", borderRadius: "14px" }}
+          onClick={registrarEntrenamiento}
+          disabled={guardando}
+        >
+          {guardando ? <Loader2 size={20} className="spin" /> : <CheckCircle2 size={20} />}
+          {guardando ? "Guardando..." : "Registrar entrenamiento de hoy"}
+        </button>
+
+        <p style={{ fontSize: "0.76rem", color: "var(--text-secondary)", marginTop: "10px", textAlign: "center" }}>
+          Queda en tu historial y tu entrenador ve que estás cumpliendo.
+        </p>
+      </div>
     </div>
   );
 };

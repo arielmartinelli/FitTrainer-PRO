@@ -64,7 +64,12 @@ const mapRoutineRow = (r) => ({
   category: r.category,
   durationWeeks: r.duration_weeks,
   description: r.description,
-  days: r.days,
+  days: r.days || [],
+  kind: r.kind || "structured",
+  filePath: r.file_path || null,
+  fileName: r.file_name || null,
+  fileType: r.file_type || null,
+  fileSize: r.file_size || null,
   updatedAt: r.updated_at
 });
 

@@ -159,6 +159,12 @@ const routineToRow = (r) => ({
   duration_weeks: r.durationWeeks,
   description: r.description,
   days: r.days,
+  // 'structured' = días y ejercicios en la app · 'file' = foto/PDF/planilla subida
+  kind: r.kind || "structured",
+  file_path: r.filePath || null,
+  file_name: r.fileName || null,
+  file_type: r.fileType || null,
+  file_size: r.fileSize || null,
   updated_at: r.updatedAt || now()
 });
 
@@ -171,6 +177,8 @@ export const saveRoutine = async (routine) => {
     ...routine,
     id: routine.id || `routine_${Date.now()}`,
     durationWeeks: Number(routine.durationWeeks || 6),
+    kind: routine.kind || "structured",
+    days: routine.days || [],
     updatedAt: now()
   };
 

@@ -16,6 +16,7 @@ import { StudentAvatar } from "../common/StudentAvatar";
 import { Modal } from "../common/Modal";
 import { MiniLineChart } from "../common/MiniLineChart";
 import { RoutinePrintView } from "./RoutinePrintView";
+import { RoutineFileViewer } from "../common/RoutineFileViewer";
 import {
   ArrowLeft,
   Calendar,
@@ -326,7 +327,7 @@ export const StudentDetailClean = ({ student, onBack }) => {
           <div className="glass-panel" style={{ padding: "18px" }}>
             <div className="row-between" style={{ marginBottom: "12px" }}>
               <h3 style={{ fontSize: "1.05rem" }}>Evolución de cargas</h3>
-              {assignedRoutine && (
+              {assignedRoutine && assignedRoutine.kind !== "file" && (
                 <button className="btn btn-secondary btn-sm" onClick={() => setShowPrintModal(true)}>
                   <Printer size={14} /> Rutina en PDF
                 </button>
@@ -468,7 +469,7 @@ export const StudentDetailClean = ({ student, onBack }) => {
               </h3>
             </div>
             <div className="action-row">
-              {assignedRoutine && (
+              {assignedRoutine && assignedRoutine.kind !== "file" && (
                 <button className="btn btn-secondary btn-sm" onClick={() => setShowPrintModal(true)}>
                   <Printer size={14} /> PDF
                 </button>
@@ -479,9 +480,11 @@ export const StudentDetailClean = ({ student, onBack }) => {
             </div>
           </div>
 
-          {assignedRoutine ? (
+          {assignedRoutine?.kind === "file" ? (
+            <RoutineFileViewer routine={assignedRoutine} />
+          ) : assignedRoutine ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {assignedRoutine.days.map((day, dIdx) => (
+              {(assignedRoutine.days || []).map((day, dIdx) => (
                 <div key={dIdx} className="subtle-box">
                   <h4 style={{ color: "var(--accent-blue)", marginBottom: "8px", fontSize: "0.95rem" }}>{day.dayName}</h4>
                   {day.exercises.map((ex, eIdx) => (
@@ -653,7 +656,9 @@ export const StudentDetailClean = ({ student, onBack }) => {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>{r.title}</div>
                   <div style={{ fontSize: "0.73rem", color: "var(--text-secondary)" }}>
-                    {r.days?.length || 0} días · {r.durationWeeks || 6} semanas
+                    {r.kind === "file"
+                      ? `Archivo · ${r.durationWeeks || 6} semanas`
+                      : `${r.days?.length || 0} días · ${r.durationWeeks || 6} semanas`}
                   </div>
                 </div>
                 <button

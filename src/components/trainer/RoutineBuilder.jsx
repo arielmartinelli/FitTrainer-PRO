@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from "react";
 import { saveRoutine, deleteRoutine, duplicateRoutine } from "../../services/storageService";
+import { borrarArchivoDeRutina } from "../../services/routineFileService";
 import { downloadSampleExcelTemplate } from "../../services/excelService";
 import { useAuth } from "../../context/AuthContext";
 import { ExcelImporterModal } from "./ExcelImporterModal";
 import { ExerciseBankModal } from "./ExerciseBankModal";
 import { RoutinePrintView } from "./RoutinePrintView";
+import { RoutineUploadModal } from "./RoutineUploadModal";
+import { RoutineFileViewer } from "../common/RoutineFileViewer";
 import { Portal } from "../common/Portal";
 import {
   Dumbbell,
@@ -20,6 +23,7 @@ import {
   Search,
   Printer,
   Copy,
+  Upload,
   ChevronUp,
   ChevronDown,
   Loader2
@@ -40,6 +44,7 @@ export const RoutineBuilder = () => {
   const [viewMode, setViewMode] = useState("list");
   const [showExcelModal, setShowExcelModal] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [routineForPrint, setRoutineForPrint] = useState(null);
   const [targetDayIndex, setTargetDayIndex] = useState(null);
@@ -84,6 +89,8 @@ export const RoutineBuilder = () => {
 
   const handleDeleteRoutine = async (routine) => {
     if (!confirm(`¿Eliminar la rutina "${routine.title}"?`)) return;
+    // Si era una rutina-archivo, se limpia también el storage.
+    if (routine.kind === "file" && routine.filePath) await borrarArchivoDeRutina(routine.filePath);
     await deleteRoutine(routine.id);
     await refreshData();
     notify("🗑️ Rutina eliminada.");
@@ -219,7 +226,7 @@ export const RoutineBuilder = () => {
                   <Dumbbell color="var(--accent-blue)" size={22} /> Rutinas
                 </h2>
                 <span style={{ fontSize: "0.84rem", color: "var(--text-secondary)" }}>
-                  Armá plantillas, usá el banco de ejercicios o importá un Excel.
+                  Armá la rutina en la app, o subí la que ya tenés como foto, PDF o planilla.
                 </span>
               </div>
 
@@ -230,8 +237,11 @@ export const RoutineBuilder = () => {
                 <button className="btn btn-secondary" onClick={() => setShowBankModal(true)}>
                   <Search size={16} /> Banco
                 </button>
-                <button className="btn btn-lime" onClick={() => setShowExcelModal(true)}>
-                  <FileSpreadsheet size={16} /> Excel
+                <button className="btn btn-lime" onClick={() => setShowUploadModal(true)}>
+                  <Upload size={16} /> Subir archivo
+                </button>
+                <button className="btn btn-secondary" onClick={() => setShowExcelModal(true)}>
+                  <FileSpreadsheet size={16} /> Importar Excel
                 </button>
               </div>
             </div>
@@ -256,6 +266,7 @@ export const RoutineBuilder = () => {
                     <div>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", flexWrap: "wrap", marginBottom: "6px" }}>
                         <span className="badge badge-blue">{r.category || "Hipertrofia"}</span>
+                        {r.kind === "file" && <span className="badge badge-neutral">Archivo</span>}
                         <span className="badge badge-success">{r.durationWeeks || 6} semanas</span>
                       </div>
 
@@ -265,37 +276,54 @@ export const RoutineBuilder = () => {
                       )}
                     </div>
 
-                    <div className="subtle-box" style={{ fontSize: "0.76rem", padding: "10px 12px" }}>
-                      <div style={{ fontWeight: 700, marginBottom: "4px" }}>
-                        {r.days?.length || 0} días · {totalExercises} ejercicios
+                    {r.kind === "file" ? (
+                      <div className="subtle-box" style={{ padding: "12px" }}>
+                        <RoutineFileViewer routine={r} compacto />
                       </div>
-                      {r.days?.map((d, dIdx) => (
-                        <div key={dIdx} style={{ color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          • {d.dayName} ({d.exercises?.length || 0})
+                    ) : (
+                      <div className="subtle-box" style={{ fontSize: "0.76rem", padding: "10px 12px" }}>
+                        <div style={{ fontWeight: 700, marginBottom: "4px" }}>
+                          {r.days?.length || 0} días · {totalExercises} ejercicios
                         </div>
-                      ))}
-                    </div>
+                        {r.days?.map((d, dIdx) => (
+                          <div key={dIdx} style={{ color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            • {d.dayName} ({d.exercises?.length || 0})
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", borderTop: "1px solid var(--border-subtle)", paddingTop: "10px" }}>
-                      <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => handleEditRoutine(r)}>
-                        <Edit size={14} /> Editar
-                      </button>
-                      <button className="btn btn-secondary btn-sm" onClick={() => handleDuplicate(r)} title="Duplicar" aria-label="Duplicar rutina">
-                        <Copy size={14} />
-                      </button>
+                      {/* Una rutina-archivo no se edita ni se exporta: el archivo ya es la rutina. */}
+                      {r.kind !== "file" && (
+                        <>
+                          <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => handleEditRoutine(r)}>
+                            <Edit size={14} /> Editar
+                          </button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => handleDuplicate(r)} title="Duplicar" aria-label="Duplicar rutina">
+                            <Copy size={14} />
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => {
+                              setRoutineForPrint(r);
+                              setShowPrintModal(true);
+                            }}
+                            title="Exportar"
+                            aria-label="Exportar a PDF o WhatsApp"
+                          >
+                            <Printer size={14} />
+                          </button>
+                        </>
+                      )}
                       <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => {
-                          setRoutineForPrint(r);
-                          setShowPrintModal(true);
-                        }}
-                        title="Exportar"
-                        aria-label="Exportar a PDF o WhatsApp"
+                        className="btn btn-danger btn-sm"
+                        style={{ flex: r.kind === "file" ? 1 : "0 0 auto" }}
+                        onClick={() => handleDeleteRoutine(r)}
+                        title="Eliminar"
+                        aria-label="Eliminar rutina"
                       >
-                        <Printer size={14} />
-                      </button>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteRoutine(r)} title="Eliminar" aria-label="Eliminar rutina">
-                        <Trash2 size={14} />
+                        <Trash2 size={14} /> {r.kind === "file" ? "Eliminar rutina" : ""}
                       </button>
                     </div>
                   </div>
@@ -542,6 +570,12 @@ export const RoutineBuilder = () => {
           </button>
         </>
       )}
+
+      <RoutineUploadModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onSubida={(nombre) => notify(`Rutina "${nombre}" subida.`)}
+      />
 
       <ExcelImporterModal
         isOpen={showExcelModal}
