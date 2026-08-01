@@ -7,7 +7,8 @@ import { getPaymentLabel, toISODate, addOneMonth } from "../../services/billingS
 import { getAdherence, ADHERENCE_LABEL } from "../../services/progressService";
 import { StudentAvatar } from "../common/StudentAvatar";
 import { Modal } from "../common/Modal";
-import { Search, Plus, Eye, UserX, UserCheck, CheckCircle2, AlertCircle, Flame, Loader2 } from "lucide-react";
+import { InfoTooltip } from "../common/InfoTooltip";
+import { Search, Plus, Eye, UserX, UserCheck, CheckCircle2, AlertCircle, Flame, Loader2, Copy, Send, KeyRound } from "lucide-react";
 
 const emptyForm = () => ({
   name: "",
@@ -30,6 +31,8 @@ export const StudentListClean = ({ onSelectStudent, isCreateModalOpen, setIsCrea
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  // Credenciales del alumno recién creado: se muestran una sola vez para entregarlas.
+  const [nuevoAcceso, setNuevoAcceso] = useState(null);
 
   const trainerStudents = useMemo(
     () => students.filter((s) => s.trainerId === currentUser?.id),
@@ -99,7 +102,14 @@ export const StudentListClean = ({ onSelectStudent, isCreateModalOpen, setIsCrea
       // usando el uid de Auth como id para que RLS reconozca al alumno.
       await provisionStudent({ ...payload, trainerId: currentUser?.id, planPrice: Number(form.planPrice) || 0 });
       await refreshData();
-      setIsCreateModalOpen(false);
+      // La contraseña no se puede volver a consultar, así que el modal pasa a
+      // mostrar los accesos para copiarlos o enviarlos antes de cerrarse.
+      setNuevoAcceso({
+        name: form.name,
+        username: form.username,
+        password: form.password,
+        phone: form.phone
+      });
       setForm(emptyForm());
     } catch (err) {
       console.error(err);
@@ -112,6 +122,32 @@ export const StudentListClean = ({ onSelectStudent, isCreateModalOpen, setIsCrea
   const handleToggleAccess = async (studentId) => {
     await toggleStudentAccess(studentId);
     await refreshData();
+  };
+
+  const textoAccesos = (acceso) =>
+    `Hola ${acceso.name}, estos son tus datos para entrar a FitTrainer PRO:\n\n` +
+    `Usuario: ${acceso.username}\n` +
+    `Contraseña: ${acceso.password}`;
+
+  const copiarAccesos = async () => {
+    try {
+      await navigator.clipboard.writeText(textoAccesos(nuevoAcceso));
+      alert("Accesos copiados.");
+    } catch {
+      alert("No se pudo copiar automáticamente. Copialos a mano desde la pantalla.");
+    }
+  };
+
+  const enviarAccesos = () => {
+    const phone = (nuevoAcceso.phone || "").replace(/[^0-9]/g, "");
+    const texto = encodeURIComponent(textoAccesos(nuevoAcceso));
+    window.open(`https://wa.me/${phone}?text=${texto}`, "_blank", "noopener");
+  };
+
+  const cerrarModal = () => {
+    setIsCreateModalOpen(false);
+    setNuevoAcceso(null);
+    setFormError("");
   };
 
   return (
@@ -185,9 +221,21 @@ export const StudentListClean = ({ onSelectStudent, isCreateModalOpen, setIsCrea
                     <div style={{ fontSize: "0.73rem", color: "var(--text-secondary)" }}>{st.planName || "Plan Mensual"}</div>
                   </div>
                   {st.questionnaireCompleted ? (
-                    <CheckCircle2 size={19} color="var(--accent-green)" aria-label="Cuestionario completado" />
+                    <InfoTooltip
+                      tone="success"
+                      ariaLabel="Estado del cuestionario"
+                      text="Cuestionario completado. Ya podés ver sus datos en la ficha."
+                    >
+                      <CheckCircle2 size={19} color="var(--accent-green)" />
+                    </InfoTooltip>
                   ) : (
-                    <AlertCircle size={19} color="var(--accent-red)" aria-label="Cuestionario pendiente" />
+                    <InfoTooltip
+                      tone="danger"
+                      ariaLabel="Estado del cuestionario"
+                      text="Cuestionario pendiente: el alumno todavía no cargó peso, altura, lesiones ni objetivos."
+                    >
+                      <AlertCircle size={19} color="var(--accent-red)" />
+                    </InfoTooltip>
                   )}
                 </div>
 
@@ -225,7 +273,65 @@ export const StudentListClean = ({ onSelectStudent, isCreateModalOpen, setIsCrea
       )}
 
       {/* Alta de alumno */}
-      <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Crear nuevo alumno">
+      <Modal
+        isOpen={isCreateModalOpen}
+        onClose={cerrarModal}
+        title={nuevoAcceso ? "Alumno creado" : "Crear nuevo alumno"}
+      >
+        {nuevoAcceso ? (
+          /* Paso final: entregar los accesos. La contraseña no se puede volver
+             a consultar después, así que este es el momento de pasarla. */
+          <div className="stack" style={{ gap: "14px" }}>
+            <div
+              className="subtle-box"
+              style={{ background: "rgba(52,199,89,0.1)", border: "1px solid rgba(52,199,89,0.3)" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                <CheckCircle2 size={19} color="var(--accent-green)" />
+                <strong style={{ fontSize: "0.95rem" }}>{nuevoAcceso.name} ya puede entrar</strong>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div>
+                  <div style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 700 }}>USUARIO</div>
+                  <div style={{ fontSize: "1.05rem", fontWeight: 800, color: "var(--accent-blue)", wordBreak: "break-all" }}>
+                    {nuevoAcceso.username}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.68rem", color: "var(--text-secondary)", fontWeight: 700 }}>CONTRASEÑA</div>
+                  <div style={{ fontSize: "1.05rem", fontWeight: 800, color: "var(--accent-green)", wordBreak: "break-all" }}>
+                    {nuevoAcceso.password}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="subtle-box"
+              style={{ display: "flex", gap: "8px", alignItems: "flex-start", fontSize: "0.82rem", color: "var(--text-secondary)" }}
+            >
+              <KeyRound size={16} color="var(--accent-blue)" style={{ flexShrink: 0, marginTop: "1px" }} />
+              <span>
+                Anotá o enviá la contraseña ahora: se guarda cifrada y no se puede volver a ver. Si se pierde,
+                vas a tener que generar una nueva desde la ficha.
+              </span>
+            </div>
+
+            <div className="action-row">
+              <button className="btn btn-lime" style={{ flex: 1 }} onClick={enviarAccesos}>
+                <Send size={16} /> Enviar accesos
+              </button>
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={copiarAccesos}>
+                <Copy size={16} /> Copiar accesos
+              </button>
+            </div>
+
+            <button className="btn btn-ghost" style={{ width: "100%" }} onClick={cerrarModal}>
+              Listo, cerrar
+            </button>
+          </div>
+        ) : (
         <form onSubmit={handleCreateStudent}>
           {formError && (
             <div
@@ -338,12 +444,13 @@ export const StudentListClean = ({ onSelectStudent, isCreateModalOpen, setIsCrea
           </div>
 
           <div className="action-row" style={{ justifyContent: "flex-end", marginTop: "16px" }}>
-            <button type="button" className="btn btn-ghost" onClick={() => setIsCreateModalOpen(false)}>Cancelar</button>
+            <button type="button" className="btn btn-ghost" onClick={cerrarModal}>Cancelar</button>
             <button type="submit" className="btn btn-lime" disabled={saving}>
               {saving && <Loader2 size={16} className="spin" />} {saving ? "Creando..." : "Crear alumno"}
             </button>
           </div>
         </form>
+        )}
       </Modal>
     </div>
   );

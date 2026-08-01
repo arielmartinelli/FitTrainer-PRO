@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { StudentAvatar } from "../common/StudentAvatar";
+import { InfoTooltip } from "../common/InfoTooltip";
 import { getPaymentStatus, getMonthlyRevenue, getPendingAmount, formatMoney } from "../../services/billingService";
 import { getAdherence, ADHERENCE_LABEL } from "../../services/progressService";
 import {
@@ -186,9 +187,17 @@ export const TrainerCleanDashboard = ({ onNavigateTab, onSelectStudent, onOpenNe
                     {paymentStatus === "due_soon" && <span className="badge badge-warning">🟡</span>}
                     <span className={`badge ${info.badge}`}>{info.dot}</span>
                     {st.questionnaireCompleted ? (
-                      <CheckCircle2 size={17} color="var(--accent-green)" />
+                      <InfoTooltip tone="success" ariaLabel="Estado del cuestionario" text="Cuestionario completado.">
+                        <CheckCircle2 size={17} color="var(--accent-green)" />
+                      </InfoTooltip>
                     ) : (
-                      <AlertCircle size={17} color="var(--accent-red)" />
+                      <InfoTooltip
+                        tone="danger"
+                        ariaLabel="Estado del cuestionario"
+                        text="Cuestionario pendiente: el alumno todavía no cargó sus datos iniciales."
+                      >
+                        <AlertCircle size={17} color="var(--accent-red)" />
+                      </InfoTooltip>
                     )}
                   </div>
                 </button>

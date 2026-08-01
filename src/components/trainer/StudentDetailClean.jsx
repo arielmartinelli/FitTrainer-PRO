@@ -176,10 +176,9 @@ export const StudentDetailClean = ({ student, onBack }) => {
   };
 
   const credentialsText = (password) =>
-    `💪 ¡Hola ${student.name}! Estos son tus datos para entrar a FitTrainer PRO:\n\n` +
+    `Hola ${student.name}, estos son tus datos para entrar a FitTrainer PRO:\n\n` +
     `Usuario: ${student.username}\n` +
-    `Contraseña: ${password}\n\n` +
-    `Te recomiendo cambiarla apenas ingreses.`;
+    `Contraseña: ${password}`;
 
   const handleCopyCredentials = async () => {
     if (!newPassword) return;

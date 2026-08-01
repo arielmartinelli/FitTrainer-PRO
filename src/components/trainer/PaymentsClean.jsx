@@ -100,10 +100,10 @@ export const PaymentsClean = ({ onSelectStudent }) => {
       .join("\n");
 
     const text = encodeURIComponent(
-      `💪 ¡Hola ${student.name}! Te recuerdo tu cuota de entrenamiento de ${formatMoney(student.planPrice)}.\n` +
+      `Hola ${student.name}, te recuerdo tu cuota de entrenamiento de ${formatMoney(student.planPrice)}.\n` +
         `${label.text}.\n\n` +
         (datosPago ? `${datosPago}\n\n` : "") +
-        `¡Gracias!`
+        `Gracias.`
     );
 
     window.open(`https://wa.me/${phone}?text=${text}`, "_blank", "noopener");

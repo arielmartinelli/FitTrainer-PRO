@@ -267,10 +267,25 @@ h2, h3, h4, h5, h6 {
 
 .glass-header {
   background: var(--bg-glass);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 1px solid var(--border-subtle);
   padding-top: var(--safe-top);
+}
+
+/* En Android el desenfoque es más débil y el contenido se leía a través del
+   header al hacer scroll. Se sube la opacidad para que tape de verdad. */
+@media (max-width: 768px) {
+  .glass-header {
+    background: rgba(255, 255, 255, 0.97);
+  }
+}
+
+/* Si el navegador no soporta backdrop-filter, el header va opaco directamente. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-header {
+    background: var(--bg-card);
+  }
 }
 
 .subtle-box {
@@ -549,16 +564,16 @@ h2, h3, h4, h5, h6 {
   left: 0;
   right: 0;
   z-index: 900;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  /* Sólida a propósito: con fondo translúcido el contenido se leía por detrás
+     al hacer scroll, sobre todo en Android donde el desenfoque es más débil. */
+  background: var(--bg-card);
   border-top: 1px solid var(--border-subtle);
   display: flex;
   justify-content: space-around;
   align-items: stretch;
   /* Respeta la barra gestual del iPhone */
   padding: 6px 4px calc(6px + var(--safe-bottom)) 4px;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
 }
 
 .tab-item {
@@ -596,9 +611,7 @@ h2, h3, h4, h5, h6 {
   right: 0;
   bottom: var(--tabbar-height);
   z-index: 1200;
-  background: rgba(28, 28, 30, 0.97);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: #1C1C1E;
   border-top: 1px solid rgba(255,255,255,0.15);
   color: #FFFFFF;
   padding: 12px 14px;

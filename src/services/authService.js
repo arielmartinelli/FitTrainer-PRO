@@ -326,13 +326,13 @@ export const resetOtherUserPassword = async ({ userId, newPassword }) => {
     });
   } catch {
     throw new Error(
-      "No se pudo contactar la función de reseteo. Desplegá 'admin-reset-password' (ver SUPABASE_AUTH.md, paso 7)."
+      "No se pudo contactar la función de reseteo. Desplegá 'admin-reset-password' (ver EMPEZAR_AQUI.md, paso 8)."
     );
   }
 
   if (response.status === 404) {
     throw new Error(
-      "La función 'admin-reset-password' no está desplegada en tu proyecto. Ver SUPABASE_AUTH.md, paso 7."
+      "La función 'admin-reset-password' no está desplegada en tu proyecto. Ver EMPEZAR_AQUI.md, paso 8."
     );
   }
 

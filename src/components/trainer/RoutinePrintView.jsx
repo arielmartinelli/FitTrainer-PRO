@@ -55,7 +55,7 @@ export const RoutinePrintView = ({ isOpen, onClose, routine, student }) => {
       msg += `\n`;
     });
 
-    msg += `💪 ¡A entrenar con todo! Generado con FitTrainer PRO.`;
+    msg += `Generado con FitTrainer PRO.`;
     return msg;
   };
 
