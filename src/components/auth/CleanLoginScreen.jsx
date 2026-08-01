@@ -95,11 +95,14 @@ export const CleanLoginScreen = () => {
             Software de Gestión de Entrenamientos
           </p>
 
-          {/* Indicador de conexión: deja ver de un vistazo si la app está leyendo
-              el .env y hablando con Supabase, o si quedó en modo local. */}
-          <span className={`badge ${isCloudMode() ? "badge-success" : "badge-warning"}`} style={{ marginTop: "10px" }}>
-            {isCloudMode() ? "🟢 Conectado a la nube" : "🟡 Modo local (sin Supabase)"}
-          </span>
+          {/* Solo se avisa cuando algo NO está bien: si falta la configuración de
+              Supabase, nada sincroniza y los alumnos no pueden entrar. En
+              funcionamiento normal no se muestra nada. */}
+          {!isCloudMode() && (
+            <span className="badge badge-warning" style={{ marginTop: "10px" }}>
+              🟡 Modo local — sin conexión a la base
+            </span>
+          )}
         </div>
 
         {/* Selector de rol */}
